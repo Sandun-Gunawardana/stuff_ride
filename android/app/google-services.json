@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "870746108398",
+    "project_id": "stuff-ride",
+    "storage_bucket": "stuff-ride.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:870746108398:android:2355c3098fffd61e13deff",
+        "android_client_info": {
+          "package_name": "com.example.stuff_ride"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCHjjE5fNZVQgq8X6W7zynN0-xEn9h8KxQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

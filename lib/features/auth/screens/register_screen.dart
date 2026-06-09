@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 
 class RegisterScreen extends StatelessWidget {
-  const RegisterScreen({super.key});
+  final String role;
+
+  const RegisterScreen({
+    super.key,
+    required this.role,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -10,15 +15,16 @@ class RegisterScreen extends StatelessWidget {
         title: const Text("Register"),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: 20),
 
-            const Text(
-              "Create Your Account",
-              style: TextStyle(
+            Text(
+              "Register as ${role.toUpperCase()}",
+              textAlign: TextAlign.center,
+              style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
               ),
@@ -26,49 +32,99 @@ class RegisterScreen extends StatelessWidget {
 
             const SizedBox(height: 30),
 
-            const TextField(
+            TextField(
               decoration: InputDecoration(
                 labelText: "Full Name",
-                border: OutlineInputBorder(),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
 
             const SizedBox(height: 20),
 
-            const TextField(
+            TextField(
               decoration: InputDecoration(
                 labelText: "Email",
-                border: OutlineInputBorder(),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
 
             const SizedBox(height: 20),
 
-            const TextField(
+            TextField(
+              decoration: InputDecoration(
+                labelText: "Phone Number",
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+
+            // Driver-specific fields
+            if (role == 'driver') ...[
+              const SizedBox(height: 20),
+
+              TextField(
+                decoration: InputDecoration(
+                  labelText: "NIC Number",
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              TextField(
+                decoration: InputDecoration(
+                  labelText: "Driving License Number",
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 20),
+
+            TextField(
               obscureText: true,
               decoration: InputDecoration(
                 labelText: "Password",
-                border: OutlineInputBorder(),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
 
             const SizedBox(height: 20),
 
-            const TextField(
+            TextField(
               obscureText: true,
               decoration: InputDecoration(
                 labelText: "Confirm Password",
-                border: OutlineInputBorder(),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
 
             const SizedBox(height: 30),
 
-            ElevatedButton(
-              onPressed: () {
-                // Firebase registration will be added later
-              },
-              child: const Text("Register"),
+            SizedBox(
+              height: 50,
+              child: ElevatedButton(
+                onPressed: () {
+                  // Firebase registration later
+                },
+                child: const Text(
+                  "Register",
+                  style: TextStyle(fontSize: 16),
+                ),
+              ),
             ),
           ],
         ),

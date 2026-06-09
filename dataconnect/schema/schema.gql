@@ -1,0 +1,43 @@
+type User @table {
+  displayName: String!
+  email: String!
+  rating: Float!
+  phoneNumber: String
+  vehicleDescription: String
+}
+
+type Listing @table {
+  title: String!
+  pickupLocation: String!
+  dropoffLocation: String!
+  status: String!
+  dimensions: String
+  weight: Float
+  imageURL: String
+  priceOffer: Float
+  creator: User!
+}
+
+type Bid @table {
+  amount: Float!
+  message: String!
+  status: String!
+  listing: Listing!
+  driver: User!
+}
+
+type Trip @table {
+  startTime: Timestamp!
+  endTime: Timestamp
+  status: String!
+  listing: Listing!
+  bid: Bid!
+}
+
+type Review @table {
+  rating: Int!
+  comment: String!
+  reviewer: User!
+  reviewed: User!
+  trip: Trip!
+}

@@ -1,0 +1,41 @@
+# Create a new user
+mutation CreateUser($displayName: String!, $email: String!, $rating: Float!, $phoneNumber: String, $vehicleDescription: String) @auth(level: PUBLIC) {
+  user_insert(data: {
+    displayName: $displayName,
+    email: $email,
+    rating: $rating,
+    phoneNumber: $phoneNumber,
+    vehicleDescription: $vehicleDescription
+  })
+}
+
+# Create a new listing
+mutation CreateListing($title: String!, $pickupLocation: String!, $dropoffLocation: String!, $status: String!, $priceOffer: Float, $creatorId: UUID!) @auth(level: USER) {
+  listing_insert(data: {
+    title: $title,
+    pickupLocation: $pickupLocation,
+    dropoffLocation: $dropoffLocation,
+    status: $status,
+    priceOffer: $priceOffer,
+    creatorId: $creatorId
+  })
+}
+
+# List all open listings
+query ListOpenListings @auth(level: PUBLIC) {
+  listings(where: {status: {eq: "open"}}) {
+    id
+    title
+    pickupLocation
+    dropoffLocation
+    priceOffer
+    creator {
+      displayName
+    }
+  }
+}
+
+# Delete a bid by ID
+mutation DeleteBid($id: UUID!) @auth(level: USER) {
+  bid_delete(id: $id)
+}

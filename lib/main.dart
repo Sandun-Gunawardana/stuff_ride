@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'features/auth/screens/splash_screen.dart';
 
-void main() {
+void main() async {
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const StuffRideApp());
 }
 

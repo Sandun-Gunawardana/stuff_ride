@@ -1,0 +1,36 @@
+mutation SeedData @transaction {
+  user_insertMany(data: [
+    {
+      id: "550e8400-e29b-41d4-a716-446655440001",
+      displayName: "Alice Driver",
+      email: "alice@example.com",
+      rating: 4.8
+    },
+    {
+      id: "550e8400-e29b-41d4-a716-446655440002",
+      displayName: "Bob Shipper",
+      email: "bob@example.com",
+      rating: 4.5
+    }
+  ])
+  listing_insertMany(data: [
+    {
+      id: "660e8400-e29b-41d4-a716-446655440001",
+      title: "Moving furniture",
+      pickupLocation: "Downtown",
+      dropoffLocation: "Suburbs",
+      status: "OPEN",
+      creator: { id: "550e8400-e29b-41d4-a716-446655440002" }
+    }
+  ])
+  bid_insertMany(data: [
+    {
+      id: "770e8400-e29b-41d4-a716-446655440001",
+      amount: 150.0,
+      message: "I can do this for you!",
+      status: "PENDING",
+      listing: { id: "660e8400-e29b-41d4-a716-446655440001" },
+      driver: { id: "550e8400-e29b-41d4-a716-446655440001" }
+    }
+  ])
+}
