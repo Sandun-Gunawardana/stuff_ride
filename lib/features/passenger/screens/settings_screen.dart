@@ -11,96 +11,96 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = true;
   bool _locationEnabled = true;
-  String _languageSelected = 'English';
+  final String _languageSelected = 'English';
+  final AuthService _authService = AuthService();
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _logout() async {
+    await _authService.logoutUser();
+    if (mounted) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('Settings'), centerTitle: true),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            _buildSettingsSection(
-              'Notifications',
-              [
-                SwitchListTile(
-                  title: const Text('Trip Notifications'),
-                  subtitle: const Text('Receive trip updates'),
-                  value: _notificationsEnabled,
-                  onChanged: (value) {
-                    setState(() {
-                      _notificationsEnabled = value;
-                    });
-                  },
-                ),
-                SwitchListTile(
-                  title: const Text('Location Tracking'),
-                  subtitle: const Text('Allow real-time location sharing'),
-                  value: _locationEnabled,
-                  onChanged: (value) {
-                    setState(() {
-                      _locationEnabled = value;
-                    });
-                  },
-                ),
-              ],
-            ),
-            _buildSettingsSection(
-              'Preferences',
-              [
-                ListTile(
-                  title: const Text('Language'),
-                  subtitle: Text(_languageSelected),
-                  trailing: const Icon(Icons.arrow_forward),
-                  onTap: () {},
-                ),
-                ListTile(
-                  title: const Text('Theme'),
-                  subtitle: const Text('Light'),
-                  trailing: const Icon(Icons.arrow_forward),
-                  onTap: () {},
-                ),
-              ],
-            ),
-            _buildSettingsSection(
-              'About',
-              [
-                ListTile(
-                  title: const Text('App Version'),
-                  subtitle: const Text('1.0.0'),
-                ),
-                ListTile(
-                  title: const Text('Privacy Policy'),
-                  trailing: const Icon(Icons.arrow_forward),
-                  onTap: () {},
-                ),
-                ListTile(
-                  title: const Text('Terms & Conditions'),
-                  trailing: const Icon(Icons.arrow_forward),
-                  onTap: () {},
-                ),
-                ListTile(
-                  title: const Text('Contact Support'),
-                  trailing: const Icon(Icons.arrow_forward),
-                  onTap: () {},
-                ),
-              ],
-            ),
+            _buildSettingsSection('Notifications', [
+              SwitchListTile(
+                title: const Text('Trip Notifications'),
+                subtitle: const Text('Receive trip updates'),
+                value: _notificationsEnabled,
+                onChanged: (value) {
+                  setState(() {
+                    _notificationsEnabled = value;
+                  });
+                },
+              ),
+              SwitchListTile(
+                title: const Text('Location Tracking'),
+                subtitle: const Text('Allow real-time location sharing'),
+                value: _locationEnabled,
+                onChanged: (value) {
+                  setState(() {
+                    _locationEnabled = value;
+                  });
+                },
+              ),
+            ]),
+            _buildSettingsSection('Preferences', [
+              ListTile(
+                title: const Text('Language'),
+                subtitle: Text(_languageSelected),
+                trailing: const Icon(Icons.arrow_forward),
+                onTap: () =>
+                    _showMessage('Language settings will be added soon'),
+              ),
+              ListTile(
+                title: const Text('Theme'),
+                subtitle: const Text('Light'),
+                trailing: const Icon(Icons.arrow_forward),
+                onTap: () => _showMessage('Theme settings will be added soon'),
+              ),
+            ]),
+            _buildSettingsSection('About', [
+              ListTile(
+                title: const Text('App Version'),
+                subtitle: const Text('1.0.0'),
+              ),
+              ListTile(
+                title: const Text('Privacy Policy'),
+                trailing: const Icon(Icons.arrow_forward),
+                onTap: () =>
+                    _showMessage('Privacy policy will be available soon'),
+              ),
+              ListTile(
+                title: const Text('Terms & Conditions'),
+                trailing: const Icon(Icons.arrow_forward),
+                onTap: () => _showMessage('Terms will be available soon'),
+              ),
+              ListTile(
+                title: const Text('Contact Support'),
+                trailing: const Icon(Icons.arrow_forward),
+                onTap: () => _showMessage('Support contact will be added soon'),
+              ),
+            ]),
             Padding(
               padding: const EdgeInsets.all(24),
               child: SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                  ),
-                  onPressed: () {
-                    // Logout logic
-                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  onPressed: _logout,
                   child: const Text('Logout'),
                 ),
               ),
@@ -128,9 +128,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         Card(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Column(
-            children: children,
-          ),
+          child: Column(children: children),
         ),
       ],
     );

@@ -7,10 +7,7 @@ import 'package:stuff_ride/features/passenger/screens/passenger_home_screen.dart
 class RegisterScreen extends StatefulWidget {
   final String role;
 
-  const RegisterScreen({
-    super.key,
-    required this.role,
-  });
+  const RegisterScreen({super.key, required this.role});
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -19,8 +16,10 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _mobileController = TextEditingController();
+  final TextEditingController _companyController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
   final AuthService _authService = AuthService();
   bool _isLoading = false;
 
@@ -28,6 +27,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void dispose() {
     _fullNameController.dispose();
     _mobileController.dispose();
+    _companyController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -36,6 +36,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void _register() async {
     if (_fullNameController.text.isEmpty ||
         _mobileController.text.isEmpty ||
+        _companyController.text.isEmpty ||
         _passwordController.text.isEmpty ||
         _confirmPasswordController.text.isEmpty) {
       _showErrorDialog('Please fill all fields');
@@ -62,6 +63,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: _passwordController.text,
         fullName: _fullNameController.text.trim(),
         role: widget.role,
+        companyId: _companyController.text.trim().toLowerCase(),
       );
 
       if (mounted) {
@@ -116,7 +118,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               .collection('users')
               .doc(user.uid)
               .get();
-          
+
+          if (!mounted) return;
+
           final userRole = userDoc.data()?['role'] ?? 'passenger';
 
           // Navigate to appropriate screen based on role
@@ -163,9 +167,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Register"),
-      ),
+      appBar: AppBar(title: const Text("Register")),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -213,6 +215,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: 20),
 
               TextField(
+                controller: _companyController,
+                textCapitalization: TextCapitalization.characters,
+                decoration: InputDecoration(
+                  labelText: "Company Code",
+                  hintText: "e.g., ACME",
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              TextField(
                 controller: _passwordController,
                 obscureText: true,
                 decoration: InputDecoration(
@@ -248,14 +264,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ? const SizedBox(
                           height: 20,
                           width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                          ),
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text(
-                          "Register",
-                          style: TextStyle(fontSize: 16),
-                        ),
+                      : const Text("Register", style: TextStyle(fontSize: 16)),
                 ),
               ),
             ],

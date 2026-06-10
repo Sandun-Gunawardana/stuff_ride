@@ -35,10 +35,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Notifications'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('Notifications'), centerTitle: true),
       body: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: notifications.length,
@@ -48,11 +45,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             margin: const EdgeInsets.only(bottom: 12),
             child: ListTile(
               leading: CircleAvatar(
-                backgroundColor: notification['color'].withOpacity(0.2),
-                child: Icon(
-                  notification['icon'],
-                  color: notification['color'],
-                ),
+                backgroundColor: notification['color'].withValues(alpha: 0.2),
+                child: Icon(notification['icon'], color: notification['color']),
               ),
               title: Text(
                 notification['title'],

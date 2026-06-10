@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:stuff_ride/services/firestore_service.dart';
-import 'package:stuff_ride/models/user_model.dart';
+import 'package:stuff_ride/models/user_model.dart' as app_model;
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -17,11 +17,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profile'),
-        centerTitle: true,
-      ),
-      body: FutureBuilder<User?>(
+      appBar: AppBar(title: const Text('Profile'), centerTitle: true),
+      body: FutureBuilder<app_model.User?>(
         future: _firestoreService.getUserById(_auth.currentUser!.uid),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -40,10 +37,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: [
                 CircleAvatar(
                   radius: 60,
-                  backgroundColor: Colors.blue.withOpacity(0.2),
+                  backgroundColor: Colors.blue.withValues(alpha: 0.2),
                   child: Text(
                     user.fullName.substring(0, 1).toUpperCase(),
-                    style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontSize: 40,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -57,39 +57,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 8),
                 Text(
                   user.mobileNumber,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
-                  ),
+                  style: const TextStyle(fontSize: 14, color: Colors.grey),
                 ),
                 const SizedBox(height: 8),
                 Chip(
                   label: Text(user.role.toUpperCase()),
-                  backgroundColor: Colors.blue.withOpacity(0.2),
+                  backgroundColor: Colors.blue.withValues(alpha: 0.2),
                 ),
                 const SizedBox(height: 40),
                 _buildProfileSection('Account Information', [
                   _buildInfoTile('Role', user.role),
-                  _buildInfoTile('Member Since', user.createdAt.toString().split(' ')[0]),
-                  _buildInfoTile('Rating', '${user.rating.toStringAsFixed(1)} ★'),
+                  _buildInfoTile(
+                    'Member Since',
+                    user.createdAt.toString().split(' ')[0],
+                  ),
+                  _buildInfoTile(
+                    'Rating',
+                    '${user.rating.toStringAsFixed(1)} ★',
+                  ),
                 ]),
                 const SizedBox(height: 20),
                 _buildProfileSection('Settings', [
-                  _buildActionTile(
-                    'Edit Profile',
-                    Icons.edit,
-                    () {},
-                  ),
-                  _buildActionTile(
-                    'Change Password',
-                    Icons.lock,
-                    () {},
-                  ),
-                  _buildActionTile(
-                    'Privacy Policy',
-                    Icons.privacy_tip,
-                    () {},
-                  ),
+                  _buildActionTile('Edit Profile', Icons.edit, () {}),
+                  _buildActionTile('Change Password', Icons.lock, () {}),
+                  _buildActionTile('Privacy Policy', Icons.privacy_tip, () {}),
                 ]),
               ],
             ),
@@ -105,17 +96,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         Text(
           title,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
-        Card(
-          child: Column(
-            children: children,
-          ),
-        ),
+        Card(child: Column(children: children)),
       ],
     );
   }
@@ -127,10 +111,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label),
-          Text(
-            value,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
         ],
       ),
     );

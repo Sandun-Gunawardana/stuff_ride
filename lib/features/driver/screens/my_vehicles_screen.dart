@@ -18,9 +18,7 @@ class _MyVehiclesScreenState extends State<MyVehiclesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("My Vehicles"),
-      ),
+      appBar: AppBar(title: const Text("My Vehicles")),
       body: StreamBuilder<List<Vehicle>>(
         stream: _firestoreService.getDriverVehicles(_auth.currentUser!.uid),
         builder: (context, snapshot) {
@@ -33,7 +31,11 @@ class _MyVehiclesScreenState extends State<MyVehiclesScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.directions_car, size: 80, color: Colors.grey),
+                  const Icon(
+                    Icons.directions_car,
+                    size: 80,
+                    color: Colors.grey,
+                  ),
                   const SizedBox(height: 20),
                   const Text('No vehicles added yet'),
                   const SizedBox(height: 20),
@@ -67,13 +69,33 @@ class _MyVehiclesScreenState extends State<MyVehiclesScreen> {
                 child: ListTile(
                   leading: const Icon(Icons.directions_car),
                   title: Text(vehicle.vehicleNumber),
-                  subtitle: Text('${vehicle.vehicleType} • ${vehicle.seatCapacity} seats'),
-                  trailing: PopupMenuButton(
+                  subtitle: Text(
+                    '${vehicle.vehicleType} • ${vehicle.seatCapacity} seats',
+                  ),
+                  trailing: PopupMenuButton<String>(
+                    onSelected: (value) async {
+                      if (value == 'edit') {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Vehicle editing will be added soon'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      if (value == 'delete') {
+                        await _firestoreService.deactivateVehicle(vehicle.id);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Vehicle removed')),
+                          );
+                        }
+                      }
+                    },
                     itemBuilder: (context) => [
+                      const PopupMenuItem(value: 'edit', child: Text('Edit')),
                       const PopupMenuItem(
-                        child: Text('Edit'),
-                      ),
-                      const PopupMenuItem(
+                        value: 'delete',
                         child: Text('Delete'),
                       ),
                     ],
@@ -88,9 +110,7 @@ class _MyVehiclesScreenState extends State<MyVehiclesScreen> {
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => const AddVehicleScreen(),
-            ),
+            MaterialPageRoute(builder: (_) => const AddVehicleScreen()),
           );
         },
         label: const Text('Add Vehicle'),

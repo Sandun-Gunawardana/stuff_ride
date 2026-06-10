@@ -11,7 +11,8 @@ class AddVehicleScreen extends StatefulWidget {
 }
 
 class _AddVehicleScreenState extends State<AddVehicleScreen> {
-  final TextEditingController _vehicleNumberController = TextEditingController();
+  final TextEditingController _vehicleNumberController =
+      TextEditingController();
   final TextEditingController _seatCapacityController = TextEditingController();
   final TextEditingController _vehicleTypeController = TextEditingController();
   final TextEditingController _colorController = TextEditingController();
@@ -37,6 +38,12 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       return;
     }
 
+    final seatCapacity = int.tryParse(_seatCapacityController.text);
+    if (seatCapacity == null || seatCapacity <= 0) {
+      _showErrorDialog('Seat capacity must be a valid number');
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
@@ -44,11 +51,16 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     try {
       User? currentUser = _auth.currentUser;
       if (currentUser != null) {
+        final companyId = await _firestoreService.getUserCompanyId(
+          currentUser.uid,
+        );
+
         Vehicle vehicle = Vehicle(
           id: '', // Firestore will generate ID
           driverId: currentUser.uid,
+          companyId: companyId,
           vehicleNumber: _vehicleNumberController.text.trim().toUpperCase(),
-          seatCapacity: int.parse(_seatCapacityController.text),
+          seatCapacity: seatCapacity,
           vehicleType: _vehicleTypeController.text.trim(),
           color: _colorController.text.trim(),
           createdAt: DateTime.now(),
@@ -63,6 +75,8 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
           );
           Navigator.pop(context);
         }
+      } else {
+        _showErrorDialog('Please log in before adding a vehicle');
       }
     } catch (e) {
       _showErrorDialog(e.toString());
@@ -94,9 +108,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Add Vehicle"),
-      ),
+      appBar: AppBar(title: const Text("Add Vehicle")),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -107,10 +119,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
               const Center(
                 child: Text(
                   "Register Your Vehicle",
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
               ),
               const SizedBox(height: 40),
@@ -167,9 +176,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                       ? const SizedBox(
                           height: 20,
                           width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                          ),
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Text(
                           "Add Vehicle",

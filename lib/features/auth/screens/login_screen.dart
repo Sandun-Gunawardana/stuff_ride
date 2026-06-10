@@ -49,12 +49,14 @@ class _LoginScreenState extends State<LoginScreen> {
               .collection('users')
               .doc(user.uid)
               .get();
-          
+
+          if (!mounted) return;
+
           final userRole = userDoc.data()?['role'] ?? 'passenger';
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Login successful!')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Login successful!')));
 
           // Navigate to appropriate screen based on role
           if (userRole == 'driver') {
@@ -108,20 +110,14 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               const SizedBox(height: 60),
 
-              const Icon(
-                Icons.directions_bus,
-                size: 80,
-              ),
+              const Icon(Icons.directions_bus, size: 80),
 
               const SizedBox(height: 20),
 
               const Center(
                 child: Text(
                   "Stuff Ride",
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
                 ),
               ),
 
@@ -130,9 +126,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const Center(
                 child: Text(
                   "Staff Transport Management System",
-                  style: TextStyle(
-                    color: Colors.grey,
-                  ),
+                  style: TextStyle(color: Colors.grey),
                 ),
               ),
 
@@ -174,14 +168,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       ? const SizedBox(
                           height: 20,
                           width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                          ),
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text(
-                          "Login",
-                          style: TextStyle(fontSize: 16),
-                        ),
+                      : const Text("Login", style: TextStyle(fontSize: 16)),
                 ),
               ),
 

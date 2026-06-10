@@ -3,6 +3,7 @@ class User {
   final String fullName;
   final String mobileNumber;
   final String role; // 'passenger', 'driver', 'admin'
+  final String companyId;
   final DateTime createdAt;
   final double rating;
   final bool isApproved; // For drivers
@@ -12,6 +13,7 @@ class User {
     required this.fullName,
     required this.mobileNumber,
     required this.role,
+    this.companyId = 'default_company',
     required this.createdAt,
     this.rating = 0.0,
     this.isApproved = false,
@@ -23,6 +25,7 @@ class User {
       fullName: data['fullName'] ?? '',
       mobileNumber: data['mobileNumber'] ?? '',
       role: data['role'] ?? 'passenger',
+      companyId: data['companyId'] ?? 'default_company',
       createdAt: (data['createdAt'] as dynamic)?.toDate() ?? DateTime.now(),
       rating: (data['rating'] ?? 0.0).toDouble(),
       isApproved: data['isApproved'] ?? false,
@@ -35,6 +38,7 @@ class User {
       'fullName': fullName,
       'mobileNumber': mobileNumber,
       'role': role,
+      'companyId': companyId,
       'createdAt': createdAt,
       'rating': rating,
       'isApproved': isApproved,

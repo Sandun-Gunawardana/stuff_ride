@@ -11,16 +11,15 @@ class AuthService {
     required String password,
     required String fullName,
     required String role,
+    required String companyId,
   }) async {
     try {
       // Create a unique email from mobile number for Firebase Auth
       String email = '$mobileNumber@stuffride.com';
-      
+
       // Create user with email and password
-      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      UserCredential userCredential = await _auth
+          .createUserWithEmailAndPassword(email: email, password: password);
 
       // Store user data in Firestore
       await _firestore.collection('users').doc(userCredential.user!.uid).set({
@@ -28,6 +27,7 @@ class AuthService {
         'mobileNumber': mobileNumber,
         'fullName': fullName,
         'role': role,
+        'companyId': companyId,
         'createdAt': DateTime.now(),
         'rating': 0.0,
       });
