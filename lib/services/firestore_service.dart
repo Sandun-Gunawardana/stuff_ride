@@ -264,6 +264,29 @@ class FirestoreService {
         });
   }
 
+  Stream<Map<int, String>> getVehicleSeatPassengers(String vehicleId) {
+    return _firestore
+        .collection('bookings')
+        .where('vehicleId', isEqualTo: vehicleId)
+        .where('status', isEqualTo: 'confirmed')
+        .snapshots()
+        .map((snapshot) {
+          final seats = <int, String>{};
+
+          for (final doc in snapshot.docs) {
+            final data = doc.data();
+            final seatNumber = data['seatNumber'];
+            final passengerId = data['passengerId'];
+
+            if (seatNumber is int && passengerId is String) {
+              seats[seatNumber] = passengerId;
+            }
+          }
+
+          return seats;
+        });
+  }
+
   Future<void> bookVehicleSeat({
     required String vehicleId,
     required String passengerId,
@@ -290,6 +313,34 @@ class FirestoreService {
         'totalFare': 0.0,
         'status': 'confirmed',
         'bookingDate': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
+  Future<void> unbookVehicleSeat({
+    required String vehicleId,
+    required String passengerId,
+    required int seatNumber,
+  }) async {
+    final bookingRef = _firestore
+        .collection('bookings')
+        .doc('${vehicleId}_seat_$seatNumber');
+
+    await _firestore.runTransaction((transaction) async {
+      final bookingSnapshot = await transaction.get(bookingRef);
+      final bookingData = bookingSnapshot.data();
+
+      if (!bookingSnapshot.exists || bookingData?['status'] != 'confirmed') {
+        throw Exception('Seat $seatNumber is not currently booked');
+      }
+
+      if (bookingData?['passengerId'] != passengerId) {
+        throw Exception('You can only unbook your own seat');
+      }
+
+      transaction.update(bookingRef, {
+        'status': 'cancelled',
+        'cancelledDate': FieldValue.serverTimestamp(),
       });
     });
   }

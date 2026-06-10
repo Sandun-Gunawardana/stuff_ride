@@ -20,7 +20,7 @@ class _PassengerDashboardState extends State<PassengerDashboard> {
   final FirestoreService _firestoreService = FirestoreService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   int? _selectedSeat;
-  bool _isBooking = false;
+  bool _isUpdatingBooking = false;
 
   int get _seatCapacity => widget.vehicleData['seatCapacity'] ?? 0;
 
@@ -61,18 +61,18 @@ class _PassengerDashboardState extends State<PassengerDashboard> {
     return rows;
   }
 
-  Future<void> _bookSelectedSeat(Set<int> bookedSeats) async {
+  Future<void> _bookSelectedSeat(Map<int, String> seatPassengers) async {
     final seatNumber = _selectedSeat;
     final passenger = _auth.currentUser;
 
     if (seatNumber == null ||
         passenger == null ||
-        bookedSeats.contains(seatNumber)) {
+        seatPassengers.containsKey(seatNumber)) {
       return;
     }
 
     setState(() {
-      _isBooking = true;
+      _isUpdatingBooking = true;
     });
 
     try {
@@ -100,7 +100,52 @@ class _PassengerDashboardState extends State<PassengerDashboard> {
     } finally {
       if (mounted) {
         setState(() {
-          _isBooking = false;
+          _isUpdatingBooking = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _unbookSelectedSeat(Map<int, String> seatPassengers) async {
+    final seatNumber = _selectedSeat;
+    final passenger = _auth.currentUser;
+
+    if (seatNumber == null ||
+        passenger == null ||
+        seatPassengers[seatNumber] != passenger.uid) {
+      return;
+    }
+
+    setState(() {
+      _isUpdatingBooking = true;
+    });
+
+    try {
+      await _firestoreService.unbookVehicleSeat(
+        vehicleId: widget.vehicleId,
+        passengerId: passenger.uid,
+        seatNumber: seatNumber,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _selectedSeat = null;
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Seat $seatNumber unbooked')));
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUpdatingBooking = false;
         });
       }
     }
@@ -111,10 +156,17 @@ class _PassengerDashboardState extends State<PassengerDashboard> {
     return Scaffold(
       appBar: AppBar(title: const Text('Passenger Dashboard')),
       body: SafeArea(
-        child: StreamBuilder<Set<int>>(
-          stream: _firestoreService.getBookedVehicleSeats(widget.vehicleId),
+        child: StreamBuilder<Map<int, String>>(
+          stream: _firestoreService.getVehicleSeatPassengers(widget.vehicleId),
           builder: (context, snapshot) {
-            final bookedSeats = snapshot.data ?? <int>{};
+            final passenger = _auth.currentUser;
+            final seatPassengers = snapshot.data ?? <int, String>{};
+            final bookedSeats = seatPassengers.keys.toSet();
+            final selectedSeatOwner = _selectedSeat == null
+                ? null
+                : seatPassengers[_selectedSeat];
+            final selectedOwnSeat =
+                passenger != null && selectedSeatOwner == passenger.uid;
             final availableSeats = (_seatCapacity - bookedSeats.length).clamp(
               0,
               _seatCapacity,
@@ -143,7 +195,8 @@ class _PassengerDashboardState extends State<PassengerDashboard> {
                   const SizedBox(height: 12),
                   _VehicleSeatLayout(
                     rows: _seatLayout,
-                    bookedSeats: bookedSeats,
+                    seatPassengers: seatPassengers,
+                    currentPassengerId: passenger?.uid,
                     selectedSeat: _selectedSeat,
                     onSeatSelected: (seatNumber) {
                       setState(() {
@@ -155,21 +208,29 @@ class _PassengerDashboardState extends State<PassengerDashboard> {
                   SizedBox(
                     height: 52,
                     child: ElevatedButton.icon(
-                      icon: _isBooking
+                      icon: _isUpdatingBooking
                           ? const SizedBox(
                               width: 18,
                               height: 18,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Icon(Icons.event_seat),
+                          : Icon(
+                              selectedOwnSeat
+                                  ? Icons.event_busy
+                                  : Icons.event_seat,
+                            ),
                       label: Text(
                         _selectedSeat == null
                             ? 'Select a seat'
+                            : selectedOwnSeat
+                            ? 'Unbook seat $_selectedSeat'
                             : 'Book seat $_selectedSeat',
                       ),
-                      onPressed: _selectedSeat == null || _isBooking
+                      onPressed: _selectedSeat == null || _isUpdatingBooking
                           ? null
-                          : () => _bookSelectedSeat(bookedSeats),
+                          : selectedOwnSeat
+                          ? () => _unbookSelectedSeat(seatPassengers)
+                          : () => _bookSelectedSeat(seatPassengers),
                     ),
                   ),
                 ],
@@ -319,6 +380,8 @@ class _SeatLegend extends StatelessWidget {
         SizedBox(width: 14),
         _LegendItem(color: Color(0xFFBBDEFB), label: 'Selected'),
         SizedBox(width: 14),
+        _LegendItem(color: Color(0xFFFFF3CD), label: 'Yours'),
+        SizedBox(width: 14),
         _LegendItem(color: Color(0xFFFFCDD2), label: 'Booked'),
       ],
     );
@@ -354,13 +417,15 @@ class _LegendItem extends StatelessWidget {
 
 class _VehicleSeatLayout extends StatelessWidget {
   final List<_SeatRowLayout> rows;
-  final Set<int> bookedSeats;
+  final Map<int, String> seatPassengers;
+  final String? currentPassengerId;
   final int? selectedSeat;
   final ValueChanged<int> onSeatSelected;
 
   const _VehicleSeatLayout({
     required this.rows,
-    required this.bookedSeats,
+    required this.seatPassengers,
+    required this.currentPassengerId,
     required this.selectedSeat,
     required this.onSeatSelected,
   });
@@ -405,7 +470,8 @@ class _VehicleSeatLayout extends StatelessWidget {
               _SeatLayoutRow(
                 row: rows[rowIndex],
                 firstSeatNumber: _firstSeatNumberForRow(rowIndex),
-                bookedSeats: bookedSeats,
+                seatPassengers: seatPassengers,
+                currentPassengerId: currentPassengerId,
                 selectedSeat: selectedSeat,
                 onSeatSelected: onSeatSelected,
               ),
@@ -429,14 +495,16 @@ class _VehicleSeatLayout extends StatelessWidget {
 class _SeatLayoutRow extends StatelessWidget {
   final _SeatRowLayout row;
   final int firstSeatNumber;
-  final Set<int> bookedSeats;
+  final Map<int, String> seatPassengers;
+  final String? currentPassengerId;
   final int? selectedSeat;
   final ValueChanged<int> onSeatSelected;
 
   const _SeatLayoutRow({
     required this.row,
     required this.firstSeatNumber,
-    required this.bookedSeats,
+    required this.seatPassengers,
+    required this.currentPassengerId,
     required this.selectedSeat,
     required this.onSeatSelected,
   });
@@ -450,7 +518,8 @@ class _SeatLayoutRow extends StatelessWidget {
           Expanded(
             child: _SeatTile(
               seatNumber: firstSeatNumber + index,
-              isBooked: bookedSeats.contains(firstSeatNumber + index),
+              passengerId: seatPassengers[firstSeatNumber + index],
+              currentPassengerId: currentPassengerId,
               isSelected: selectedSeat == firstSeatNumber + index,
               onTap: onSeatSelected,
             ),
@@ -464,28 +533,34 @@ class _SeatLayoutRow extends StatelessWidget {
 
 class _SeatTile extends StatelessWidget {
   final int seatNumber;
-  final bool isBooked;
+  final String? passengerId;
+  final String? currentPassengerId;
   final bool isSelected;
   final ValueChanged<int> onTap;
 
   const _SeatTile({
     required this.seatNumber,
-    required this.isBooked,
+    required this.passengerId,
+    required this.currentPassengerId,
     required this.isSelected,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isBooked = passengerId != null;
+    final isOwnSeat = isBooked && passengerId == currentPassengerId;
     final color = isBooked
-        ? const Color(0xFFFFCDD2)
+        ? isOwnSeat
+              ? const Color(0xFFFFF3CD)
+              : const Color(0xFFFFCDD2)
         : isSelected
         ? const Color(0xFFBBDEFB)
         : const Color(0xFFE8F5E9);
 
     return InkWell(
       borderRadius: BorderRadius.circular(8),
-      onTap: isBooked ? null : () => onTap(seatNumber),
+      onTap: isBooked && !isOwnSeat ? null : () => onTap(seatNumber),
       child: Container(
         height: 54,
         decoration: BoxDecoration(
@@ -500,8 +575,10 @@ class _SeatTile extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.event_seat,
-              color: isBooked ? Colors.red.shade700 : Colors.black87,
+              isOwnSeat ? Icons.event_available : Icons.event_seat,
+              color: isBooked && !isOwnSeat
+                  ? Colors.red.shade700
+                  : Colors.black87,
             ),
             Text(
               '$seatNumber',

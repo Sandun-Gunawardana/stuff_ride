@@ -219,6 +219,37 @@ class _BookingsTab extends StatelessWidget {
             for (final item in bookings)
               _BookedVehicleCard(
                 item: item,
+                onUnbook: () async {
+                  final booking = item['booking'] as Map<String, dynamic>;
+                  final vehicleId = item['vehicleId'] as String;
+                  final seatNumber = booking['seatNumber'];
+
+                  if (seatNumber is! int) return;
+
+                  try {
+                    await firestoreService.unbookVehicleSeat(
+                      vehicleId: vehicleId,
+                      passengerId: user.uid,
+                      seatNumber: seatNumber,
+                    );
+
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Seat $seatNumber unbooked')),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            e.toString().replaceFirst('Exception: ', ''),
+                          ),
+                        ),
+                      );
+                    }
+                  }
+                },
                 onTap: () {
                   Navigator.push(
                     context,
@@ -269,8 +300,13 @@ class _VehicleCard extends StatelessWidget {
 class _BookedVehicleCard extends StatelessWidget {
   final Map<String, dynamic> item;
   final VoidCallback onTap;
+  final VoidCallback onUnbook;
 
-  const _BookedVehicleCard({required this.item, required this.onTap});
+  const _BookedVehicleCard({
+    required this.item,
+    required this.onTap,
+    required this.onUnbook,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -286,7 +322,11 @@ class _BookedVehicleCard extends StatelessWidget {
         subtitle: Text(
           '${vehicle['vehicleType'] ?? 'Vehicle'} • Seat ${seatNumber ?? '-'}',
         ),
-        trailing: const Icon(Icons.arrow_forward),
+        trailing: TextButton.icon(
+          onPressed: onUnbook,
+          icon: const Icon(Icons.event_busy),
+          label: const Text('Unbook'),
+        ),
         onTap: onTap,
       ),
     );
