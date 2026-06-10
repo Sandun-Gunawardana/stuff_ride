@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:stuff_ride/models/vehicle_model.dart';
 import 'package:stuff_ride/services/firestore_service.dart';
 
@@ -17,10 +20,13 @@ class _DriverBookingsScreenState extends State<DriverBookingsScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final TextEditingController _roadController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
+  StreamSubscription<Position>? _positionSubscription;
   bool _isUpdatingTrip = false;
+  bool _isGpsTracking = false;
 
   @override
   void dispose() {
+    _positionSubscription?.cancel();
     _roadController.dispose();
     _locationController.dispose();
     super.dispose();
@@ -60,6 +66,7 @@ class _DriverBookingsScreenState extends State<DriverBookingsScreen> {
           roadDescription: road,
           currentLocation: location,
         );
+        await _startGpsTracking();
       } else {
         await _firestoreService.updateVehicleTripProgress(
           vehicleId: widget.vehicle.id,
@@ -88,6 +95,90 @@ class _DriverBookingsScreenState extends State<DriverBookingsScreen> {
     }
   }
 
+  Future<void> _startGpsTracking() async {
+    final hasPermission = await _ensureLocationPermission();
+    if (!hasPermission) return;
+
+    await _positionSubscription?.cancel();
+
+    const settings = LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 10,
+    );
+
+    _positionSubscription =
+        Geolocator.getPositionStream(locationSettings: settings).listen(
+          (position) async {
+            await _firestoreService.updateVehicleGpsLocation(
+              vehicleId: widget.vehicle.id,
+              latitude: position.latitude,
+              longitude: position.longitude,
+              accuracy: position.accuracy,
+              speed: position.speed.isNegative ? null : position.speed * 3.6,
+              roadDescription: _roadController.text.trim(),
+              currentLocation: _locationController.text.trim(),
+            );
+          },
+          onError: (error) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('GPS tracking error: $error')),
+            );
+          },
+        );
+
+    final currentPosition = await Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+    );
+
+    await _firestoreService.updateVehicleGpsLocation(
+      vehicleId: widget.vehicle.id,
+      latitude: currentPosition.latitude,
+      longitude: currentPosition.longitude,
+      accuracy: currentPosition.accuracy,
+      speed: currentPosition.speed.isNegative
+          ? null
+          : currentPosition.speed * 3.6,
+      roadDescription: _roadController.text.trim(),
+      currentLocation: _locationController.text.trim(),
+    );
+
+    if (mounted) {
+      setState(() {
+        _isGpsTracking = true;
+      });
+    }
+  }
+
+  Future<bool> _ensureLocationPermission() async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Turn on device location services')),
+        );
+      }
+      return false;
+    }
+
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Location permission is required')),
+        );
+      }
+      return false;
+    }
+
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -104,6 +195,7 @@ class _DriverBookingsScreenState extends State<DriverBookingsScreen> {
               locationController: _locationController,
               firestoreService: _firestoreService,
               isUpdating: _isUpdatingTrip,
+              isGpsTracking: _isGpsTracking,
               onStartTrip: _startTrip,
               onUpdateProgress: _updateProgress,
             ),
@@ -184,6 +276,7 @@ class _TripProgressCard extends StatelessWidget {
   final TextEditingController locationController;
   final FirestoreService firestoreService;
   final bool isUpdating;
+  final bool isGpsTracking;
   final VoidCallback onStartTrip;
   final VoidCallback onUpdateProgress;
 
@@ -193,6 +286,7 @@ class _TripProgressCard extends StatelessWidget {
     required this.locationController,
     required this.firestoreService,
     required this.isUpdating,
+    required this.isGpsTracking,
     required this.onStartTrip,
     required this.onUpdateProgress,
   });
@@ -222,6 +316,22 @@ class _TripProgressCard extends StatelessWidget {
                     Icon(
                       isOngoing ? Icons.play_circle : Icons.pause_circle,
                       color: isOngoing ? Colors.green : Colors.grey,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(
+                      isGpsTracking ? Icons.gps_fixed : Icons.gps_off,
+                      size: 18,
+                      color: isGpsTracking ? Colors.green : Colors.grey,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      isGpsTracking
+                          ? 'Live GPS is updating for passengers'
+                          : 'Live GPS starts when trip starts',
                     ),
                   ],
                 ),

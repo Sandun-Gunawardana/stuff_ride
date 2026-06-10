@@ -475,4 +475,34 @@ class FirestoreService {
       'timestamp': now,
     }, SetOptions(merge: true));
   }
+
+  Future<void> updateVehicleGpsLocation({
+    required String vehicleId,
+    required double latitude,
+    required double longitude,
+    required double accuracy,
+    double? speed,
+    String? roadDescription,
+    String? currentLocation,
+  }) async {
+    final now = FieldValue.serverTimestamp();
+
+    await _firestore.collection('vehicleLocations').doc(vehicleId).set({
+      'latitude': latitude,
+      'longitude': longitude,
+      'accuracy': accuracy,
+      'speed': speed,
+      'roadDescription': ?roadDescription,
+      'currentLocation': ?currentLocation,
+      'timestamp': now,
+    }, SetOptions(merge: true));
+
+    await _firestore.collection('vehicleTrips').doc(vehicleId).set({
+      'lastLatitude': latitude,
+      'lastLongitude': longitude,
+      'lastAccuracy': accuracy,
+      'lastSpeed': speed,
+      'updatedAt': now,
+    }, SetOptions(merge: true));
+  }
 }
