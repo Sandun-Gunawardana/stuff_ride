@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:stuff_ride/features/auth/screens/login_screen.dart';
 import 'package:stuff_ride/services/auth_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -23,7 +24,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _logout() async {
     await _authService.logoutUser();
     if (mounted) {
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
     }
   }
 

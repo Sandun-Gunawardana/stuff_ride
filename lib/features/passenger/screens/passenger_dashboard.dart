@@ -27,11 +27,38 @@ class _PassengerDashboardState extends State<PassengerDashboard> {
   String get _vehicleType =>
       (widget.vehicleData['vehicleType'] ?? 'Vehicle').toString();
 
-  int get _seatColumns {
+  List<_SeatRowLayout> get _seatLayout {
+    final layout = widget.vehicleData['seatLayout'];
+    if (layout is List && layout.isNotEmpty) {
+      return layout
+          .whereType<Map>()
+          .map((row) => _SeatRowLayout.fromMap(Map<String, dynamic>.from(row)))
+          .where((row) => row.seats > 0)
+          .toList();
+    }
+
+    return _buildFallbackLayout();
+  }
+
+  List<_SeatRowLayout> _buildFallbackLayout() {
     final type = _vehicleType.toLowerCase();
-    if (type.contains('bus')) return 4;
-    if (type.contains('van')) return 3;
-    return 2;
+    final seatsPerRow = type.contains('bus')
+        ? 4
+        : type.contains('van')
+        ? 3
+        : 2;
+    final rows = <_SeatRowLayout>[];
+    var remaining = _seatCapacity;
+
+    while (remaining > 0) {
+      final seats = remaining >= seatsPerRow ? seatsPerRow : remaining;
+      rows.add(
+        _SeatRowLayout(seats: seats, aisleAfter: seats > 2 ? seats ~/ 2 : null),
+      );
+      remaining -= seats;
+    }
+
+    return rows;
   }
 
   Future<void> _bookSelectedSeat(Set<int> bookedSeats) async {
@@ -115,8 +142,7 @@ class _PassengerDashboardState extends State<PassengerDashboard> {
                   _SeatLegend(),
                   const SizedBox(height: 12),
                   _VehicleSeatLayout(
-                    capacity: _seatCapacity,
-                    columns: _seatColumns,
+                    rows: _seatLayout,
                     bookedSeats: bookedSeats,
                     selectedSeat: _selectedSeat,
                     onSeatSelected: (seatNumber) {
@@ -327,15 +353,13 @@ class _LegendItem extends StatelessWidget {
 }
 
 class _VehicleSeatLayout extends StatelessWidget {
-  final int capacity;
-  final int columns;
+  final List<_SeatRowLayout> rows;
   final Set<int> bookedSeats;
   final int? selectedSeat;
   final ValueChanged<int> onSeatSelected;
 
   const _VehicleSeatLayout({
-    required this.capacity,
-    required this.columns,
+    required this.rows,
     required this.bookedSeats,
     required this.selectedSeat,
     required this.onSeatSelected,
@@ -343,8 +367,6 @@ class _VehicleSeatLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rows = (capacity / columns).ceil();
-
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -379,47 +401,75 @@ class _VehicleSeatLayout extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            for (var row = 0; row < rows; row++) ...[
-              Row(
-                children: [
-                  for (var column = 0; column < columns; column++) ...[
-                    if (column == (columns / 2).ceil())
-                      const SizedBox(width: 18),
-                    Expanded(
-                      child: _SeatTile(
-                        seatNumber: (row * columns) + column + 1,
-                        isVisible: (row * columns) + column + 1 <= capacity,
-                        isBooked: bookedSeats.contains(
-                          (row * columns) + column + 1,
-                        ),
-                        isSelected:
-                            selectedSeat == (row * columns) + column + 1,
-                        onTap: onSeatSelected,
-                      ),
-                    ),
-                    if (column != columns - 1) const SizedBox(width: 8),
-                  ],
-                ],
+            for (var rowIndex = 0; rowIndex < rows.length; rowIndex++) ...[
+              _SeatLayoutRow(
+                row: rows[rowIndex],
+                firstSeatNumber: _firstSeatNumberForRow(rowIndex),
+                bookedSeats: bookedSeats,
+                selectedSeat: selectedSeat,
+                onSeatSelected: onSeatSelected,
               ),
-              if (row != rows - 1) const SizedBox(height: 10),
+              if (rowIndex != rows.length - 1) const SizedBox(height: 10),
             ],
           ],
         ),
       ),
     );
   }
+
+  int _firstSeatNumberForRow(int rowIndex) {
+    var seatNumber = 1;
+    for (var index = 0; index < rowIndex; index++) {
+      seatNumber += rows[index].seats;
+    }
+    return seatNumber;
+  }
+}
+
+class _SeatLayoutRow extends StatelessWidget {
+  final _SeatRowLayout row;
+  final int firstSeatNumber;
+  final Set<int> bookedSeats;
+  final int? selectedSeat;
+  final ValueChanged<int> onSeatSelected;
+
+  const _SeatLayoutRow({
+    required this.row,
+    required this.firstSeatNumber,
+    required this.bookedSeats,
+    required this.selectedSeat,
+    required this.onSeatSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        for (var index = 0; index < row.seats; index++) ...[
+          if (row.aisleAfter == index) const SizedBox(width: 18),
+          Expanded(
+            child: _SeatTile(
+              seatNumber: firstSeatNumber + index,
+              isBooked: bookedSeats.contains(firstSeatNumber + index),
+              isSelected: selectedSeat == firstSeatNumber + index,
+              onTap: onSeatSelected,
+            ),
+          ),
+          if (index != row.seats - 1) const SizedBox(width: 8),
+        ],
+      ],
+    );
+  }
 }
 
 class _SeatTile extends StatelessWidget {
   final int seatNumber;
-  final bool isVisible;
   final bool isBooked;
   final bool isSelected;
   final ValueChanged<int> onTap;
 
   const _SeatTile({
     required this.seatNumber,
-    required this.isVisible,
     required this.isBooked,
     required this.isSelected,
     required this.onTap,
@@ -427,10 +477,6 @@ class _SeatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!isVisible) {
-      return const SizedBox(height: 54);
-    }
-
     final color = isBooked
         ? const Color(0xFFFFCDD2)
         : isSelected
@@ -464,6 +510,20 @@ class _SeatTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _SeatRowLayout {
+  final int seats;
+  final int? aisleAfter;
+
+  const _SeatRowLayout({required this.seats, this.aisleAfter});
+
+  factory _SeatRowLayout.fromMap(Map<String, dynamic> map) {
+    return _SeatRowLayout(
+      seats: map['seats'] ?? 0,
+      aisleAfter: map['aisleAfter'],
     );
   }
 }

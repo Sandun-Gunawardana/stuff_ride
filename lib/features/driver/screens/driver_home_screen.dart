@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:stuff_ride/features/auth/screens/login_screen.dart';
 import 'package:stuff_ride/services/auth_service.dart';
 import 'add_vehicle_screen.dart';
 import 'my_vehicles_screen.dart';
@@ -16,7 +17,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
   void _logout() async {
     await _authService.logoutUser();
     if (mounted) {
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
     }
   }
 
@@ -26,10 +30,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       appBar: AppBar(
         title: const Text("Driver Dashboard"),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
-          ),
+          IconButton(icon: const Icon(Icons.logout), onPressed: _logout),
         ],
       ),
       body: SingleChildScrollView(
@@ -41,10 +42,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
             const Center(
               child: Text(
                 "Welcome Driver",
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
               ),
             ),
             const SizedBox(height: 50),
@@ -56,9 +54,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => const AddVehicleScreen(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const AddVehicleScreen()),
                   );
                 },
               ),
@@ -72,9 +68,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => const MyVehiclesScreen(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const MyVehiclesScreen()),
                   );
                 },
               ),
@@ -88,7 +82,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                 onPressed: () {
                   // Routes management screen
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Routes feature coming soon!')),
+                    const SnackBar(
+                      content: Text('Routes feature coming soon!'),
+                    ),
                   );
                 },
               ),
@@ -102,7 +98,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                 onPressed: () {
                   // Schedule trip screen
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Schedule trip feature coming soon!')),
+                    const SnackBar(
+                      content: Text('Schedule trip feature coming soon!'),
+                    ),
                   );
                 },
               ),

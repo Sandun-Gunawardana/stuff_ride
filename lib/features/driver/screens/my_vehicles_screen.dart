@@ -75,9 +75,10 @@ class _MyVehiclesScreenState extends State<MyVehiclesScreen> {
                   trailing: PopupMenuButton<String>(
                     onSelected: (value) async {
                       if (value == 'edit') {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Vehicle editing will be added soon'),
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => AddVehicleScreen(vehicle: vehicle),
                           ),
                         );
                         return;

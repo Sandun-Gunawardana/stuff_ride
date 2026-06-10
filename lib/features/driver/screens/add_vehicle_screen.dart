@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:stuff_ride/models/vehicle_model.dart';
 import 'package:stuff_ride/services/firestore_service.dart';
+import 'seat_layout_screen.dart';
 
 class AddVehicleScreen extends StatefulWidget {
-  const AddVehicleScreen({super.key});
+  final Vehicle? vehicle;
+
+  const AddVehicleScreen({super.key, this.vehicle});
 
   @override
   State<AddVehicleScreen> createState() => _AddVehicleScreenState();
@@ -19,6 +22,22 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _isLoading = false;
+  List<Map<String, dynamic>> _seatLayout = [];
+
+  bool get _isEditing => widget.vehicle != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final vehicle = widget.vehicle;
+    if (vehicle != null) {
+      _vehicleNumberController.text = vehicle.vehicleNumber;
+      _seatCapacityController.text = vehicle.seatCapacity.toString();
+      _vehicleTypeController.text = vehicle.vehicleType;
+      _colorController.text = vehicle.color;
+      _seatLayout = vehicle.seatLayout;
+    }
+  }
 
   @override
   void dispose() {
@@ -29,7 +48,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     super.dispose();
   }
 
-  void _addVehicle() async {
+  Future<void> _continueToLayout() async {
     if (_vehicleNumberController.text.isEmpty ||
         _seatCapacityController.text.isEmpty ||
         _vehicleTypeController.text.isEmpty ||
@@ -44,6 +63,23 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       return;
     }
 
+    final layout = await Navigator.push<List<Map<String, dynamic>>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SeatLayoutScreen(
+          seatCapacity: seatCapacity,
+          initialLayout: _seatLayout,
+        ),
+      ),
+    );
+
+    if (layout == null) return;
+
+    _seatLayout = layout;
+    await _saveVehicle(seatCapacity: seatCapacity);
+  }
+
+  Future<void> _saveVehicle({required int seatCapacity}) async {
     setState(() {
       _isLoading = true;
     });
@@ -54,24 +90,36 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
         final companyId = await _firestoreService.getUserCompanyId(
           currentUser.uid,
         );
+        final existingVehicle = widget.vehicle;
 
         Vehicle vehicle = Vehicle(
-          id: '', // Firestore will generate ID
+          id: existingVehicle?.id ?? '',
           driverId: currentUser.uid,
           companyId: companyId,
           vehicleNumber: _vehicleNumberController.text.trim().toUpperCase(),
           seatCapacity: seatCapacity,
+          seatLayout: _seatLayout,
           vehicleType: _vehicleTypeController.text.trim(),
           color: _colorController.text.trim(),
-          createdAt: DateTime.now(),
+          createdAt: existingVehicle?.createdAt ?? DateTime.now(),
           isActive: true,
         );
 
-        await _firestoreService.addVehicle(vehicle);
+        if (_isEditing) {
+          await _firestoreService.updateVehicle(vehicle);
+        } else {
+          await _firestoreService.addVehicle(vehicle);
+        }
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Vehicle added successfully!')),
+            SnackBar(
+              content: Text(
+                _isEditing
+                    ? 'Vehicle updated successfully!'
+                    : 'Vehicle added successfully!',
+              ),
+            ),
           );
           Navigator.pop(context);
         }
@@ -108,7 +156,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Add Vehicle")),
+      appBar: AppBar(title: Text(_isEditing ? "Edit Vehicle" : "Add Vehicle")),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -171,16 +219,18 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
               SizedBox(
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : _addVehicle,
+                  onPressed: _isLoading ? null : _continueToLayout,
                   child: _isLoading
                       ? const SizedBox(
                           height: 20,
                           width: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text(
-                          "Add Vehicle",
-                          style: TextStyle(fontSize: 16),
+                      : Text(
+                          _isEditing
+                              ? "Continue to Layout"
+                              : "Continue to Seat Layout",
+                          style: const TextStyle(fontSize: 16),
                         ),
                 ),
               ),

@@ -31,7 +31,8 @@ class Vehicle {
       vehicleNumber: data['vehicleNumber'] ?? '',
       vehicleType: data['vehicleType'] ?? '',
       seatCapacity: data['seatCapacity'] ?? 0,
-      seatLayout: (data['seatLayout'] as List<dynamic>?)
+      seatLayout:
+          (data['seatLayout'] as List<dynamic>?)
               ?.map((row) => Map<String, dynamic>.from(row as Map))
               .toList() ??
           const [],
