@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:stuff_ride/services/firestore_service.dart';
+import 'pickup_location_picker.dart';
 
 class PassengerDashboard extends StatefulWidget {
   final String vehicleId;
@@ -76,10 +77,27 @@ class _PassengerDashboardState extends State<PassengerDashboard> {
     });
 
     try {
+      final pickupLocation = await Navigator.push<PickupLocation>(
+        context,
+        MaterialPageRoute(builder: (_) => const PickupLocationPicker()),
+      );
+
+      if (pickupLocation == null) {
+        if (mounted) {
+          setState(() {
+            _isUpdatingBooking = false;
+          });
+        }
+        return;
+      }
+
       await _firestoreService.bookVehicleSeat(
         vehicleId: widget.vehicleId,
         passengerId: passenger.uid,
         seatNumber: seatNumber,
+        pickupLocation: pickupLocation.label,
+        pickupLatitude: pickupLocation.latitude,
+        pickupLongitude: pickupLocation.longitude,
       );
 
       if (!mounted) return;

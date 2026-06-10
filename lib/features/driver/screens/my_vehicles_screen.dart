@@ -58,64 +58,59 @@ class _MyVehiclesScreenState extends State<MyVehiclesScreen> {
 
           final vehicles = snapshot.data!;
 
-          return ListView.builder(
+          return ListView(
             padding: const EdgeInsets.all(16),
-            itemCount: vehicles.length,
-            itemBuilder: (context, index) {
-              final vehicle = vehicles[index];
-
-              return Card(
-                margin: const EdgeInsets.only(bottom: 16),
-                child: ListTile(
-                  leading: const Icon(Icons.directions_car),
-                  title: Text(vehicle.vehicleNumber),
-                  subtitle: Text(
-                    '${vehicle.vehicleType} • ${vehicle.seatCapacity} seats',
-                  ),
-                  trailing: PopupMenuButton<String>(
-                    onSelected: (value) async {
-                      if (value == 'edit') {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => AddVehicleScreen(vehicle: vehicle),
-                          ),
-                        );
-                        return;
-                      }
-
-                      if (value == 'delete') {
-                        await _firestoreService.deactivateVehicle(vehicle.id);
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Vehicle removed')),
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(bottom: 12),
+                child: Text(
+                  'Drivers can keep one active vehicle: the vehicle they are driving.',
+                ),
+              ),
+              for (final vehicle in vehicles)
+                Card(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  child: ListTile(
+                    leading: const Icon(Icons.directions_car),
+                    title: Text(vehicle.vehicleNumber),
+                    subtitle: Text(
+                      '${vehicle.vehicleType} • ${vehicle.seatCapacity} seats',
+                    ),
+                    trailing: PopupMenuButton<String>(
+                      onSelected: (value) async {
+                        if (value == 'edit') {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  AddVehicleScreen(vehicle: vehicle),
+                            ),
                           );
+                          return;
                         }
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Text('Delete'),
-                      ),
-                    ],
+
+                        if (value == 'delete') {
+                          await _firestoreService.deactivateVehicle(vehicle.id);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Vehicle removed')),
+                            );
+                          }
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Text('Delete'),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              );
-            },
+            ],
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const AddVehicleScreen()),
-          );
-        },
-        label: const Text('Add Vehicle'),
-        icon: const Icon(Icons.add),
       ),
     );
   }

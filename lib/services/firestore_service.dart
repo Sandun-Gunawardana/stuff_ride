@@ -44,6 +44,17 @@ class FirestoreService {
 
   // ===== VEHICLE OPERATIONS =====
   Future<String> addVehicle(Vehicle vehicle) async {
+    final existingVehicles = await _firestore
+        .collection('vehicles')
+        .where('driverId', isEqualTo: vehicle.driverId)
+        .where('isActive', isEqualTo: true)
+        .limit(1)
+        .get();
+
+    if (existingVehicles.docs.isNotEmpty) {
+      throw Exception('Drivers can only register one active vehicle');
+    }
+
     DocumentReference docRef = await _firestore
         .collection('vehicles')
         .add(vehicle.toMap());
@@ -108,6 +119,20 @@ class FirestoreService {
     await _firestore.collection('vehicles').doc(vehicleId).update({
       'isActive': false,
     });
+  }
+
+  Stream<Vehicle?> getDriverActiveVehicle(String driverId) {
+    return _firestore
+        .collection('vehicles')
+        .where('driverId', isEqualTo: driverId)
+        .where('isActive', isEqualTo: true)
+        .limit(1)
+        .snapshots()
+        .map((snapshot) {
+          if (snapshot.docs.isEmpty) return null;
+          final doc = snapshot.docs.first;
+          return Vehicle.fromMap(doc.data(), doc.id);
+        });
   }
 
   // ===== ROUTE OPERATIONS =====
@@ -250,6 +275,49 @@ class FirestoreService {
         });
   }
 
+  Stream<List<Map<String, dynamic>>> getVehicleBookingDetails(
+    String vehicleId,
+  ) {
+    return _firestore
+        .collection('bookings')
+        .where('vehicleId', isEqualTo: vehicleId)
+        .where('status', isEqualTo: 'confirmed')
+        .snapshots()
+        .asyncMap((snapshot) async {
+          final items = <Map<String, dynamic>>[];
+
+          for (final doc in snapshot.docs) {
+            final booking = doc.data();
+            final passengerId = booking['passengerId'] as String?;
+            Map<String, dynamic>? passenger;
+
+            if (passengerId != null && passengerId.isNotEmpty) {
+              final passengerDoc = await _firestore
+                  .collection('users')
+                  .doc(passengerId)
+                  .get();
+              passenger = passengerDoc.data();
+            }
+
+            items.add({
+              'bookingId': doc.id,
+              'booking': booking,
+              'passenger': passenger,
+            });
+          }
+
+          items.sort((a, b) {
+            final aSeat = (a['booking'] as Map<String, dynamic>)['seatNumber'];
+            final bSeat = (b['booking'] as Map<String, dynamic>)['seatNumber'];
+            return (aSeat is int ? aSeat : 0).compareTo(
+              bSeat is int ? bSeat : 0,
+            );
+          });
+
+          return items;
+        });
+  }
+
   Stream<Set<int>> getBookedVehicleSeats(String vehicleId) {
     return _firestore
         .collection('bookings')
@@ -291,6 +359,9 @@ class FirestoreService {
     required String vehicleId,
     required String passengerId,
     required int seatNumber,
+    required String pickupLocation,
+    required double pickupLatitude,
+    required double pickupLongitude,
   }) async {
     final bookingRef = _firestore
         .collection('bookings')
@@ -309,6 +380,9 @@ class FirestoreService {
         'tripId': vehicleId,
         'passengerId': passengerId,
         'seatNumber': seatNumber,
+        'pickupLocation': pickupLocation,
+        'pickupLatitude': pickupLatitude,
+        'pickupLongitude': pickupLongitude,
         'seatsBooked': 1,
         'totalFare': 0.0,
         'status': 'confirmed',
@@ -349,5 +423,56 @@ class FirestoreService {
     String vehicleId,
   ) {
     return _firestore.collection('vehicleLocations').doc(vehicleId).snapshots();
+  }
+
+  Stream<DocumentSnapshot<Map<String, dynamic>>> getVehicleTripState(
+    String vehicleId,
+  ) {
+    return _firestore.collection('vehicleTrips').doc(vehicleId).snapshots();
+  }
+
+  Future<void> startVehicleTrip({
+    required String vehicleId,
+    required String driverId,
+    required String roadDescription,
+    required String currentLocation,
+  }) async {
+    final now = FieldValue.serverTimestamp();
+
+    await _firestore.collection('vehicleTrips').doc(vehicleId).set({
+      'vehicleId': vehicleId,
+      'driverId': driverId,
+      'status': 'ongoing',
+      'roadDescription': roadDescription,
+      'currentLocation': currentLocation,
+      'startedAt': now,
+      'updatedAt': now,
+    }, SetOptions(merge: true));
+
+    await updateVehicleTripProgress(
+      vehicleId: vehicleId,
+      roadDescription: roadDescription,
+      currentLocation: currentLocation,
+    );
+  }
+
+  Future<void> updateVehicleTripProgress({
+    required String vehicleId,
+    required String roadDescription,
+    required String currentLocation,
+  }) async {
+    final now = FieldValue.serverTimestamp();
+
+    await _firestore.collection('vehicleTrips').doc(vehicleId).set({
+      'roadDescription': roadDescription,
+      'currentLocation': currentLocation,
+      'updatedAt': now,
+    }, SetOptions(merge: true));
+
+    await _firestore.collection('vehicleLocations').doc(vehicleId).set({
+      'currentLocation': currentLocation,
+      'roadDescription': roadDescription,
+      'timestamp': now,
+    }, SetOptions(merge: true));
   }
 }
