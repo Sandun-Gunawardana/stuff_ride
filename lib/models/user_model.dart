@@ -19,6 +19,11 @@ class User {
     this.isApproved = false,
   });
 
+  static DateTime _dateFromValue(dynamic value) {
+    if (value is DateTime) return value;
+    return value?.toDate() ?? DateTime.now();
+  }
+
   factory User.fromMap(Map<String, dynamic> data) {
     return User(
       uid: data['uid'] ?? '',
@@ -26,7 +31,7 @@ class User {
       mobileNumber: data['mobileNumber'] ?? '',
       role: data['role'] ?? 'passenger',
       companyId: data['companyId'] ?? 'default_company',
-      createdAt: (data['createdAt'] as dynamic)?.toDate() ?? DateTime.now(),
+      createdAt: _dateFromValue(data['createdAt']),
       rating: (data['rating'] ?? 0.0).toDouble(),
       isApproved: data['isApproved'] ?? false,
     );

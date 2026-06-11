@@ -35,6 +35,17 @@ class Ride {
     this.endedAt,
   });
 
+  static DateTime _dateFromValue(dynamic value) {
+    if (value is DateTime) return value;
+    return value?.toDate() ?? DateTime.now();
+  }
+
+  static DateTime? _nullableDateFromValue(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    return value.toDate();
+  }
+
   factory Ride.fromMap(Map<String, dynamic> data, String documentId) {
     return Ride(
       id: documentId,
@@ -50,13 +61,9 @@ class Ride {
       lastLongitude: (data['lastLongitude'] as num?)?.toDouble(),
       lastAccuracy: (data['lastAccuracy'] as num?)?.toDouble(),
       lastSpeed: (data['lastSpeed'] as num?)?.toDouble(),
-      createdAt: (data['createdAt'] as dynamic)?.toDate() ?? DateTime.now(),
-      startedAt: data['startedAt'] != null
-          ? (data['startedAt'] as dynamic).toDate()
-          : null,
-      endedAt: data['endedAt'] != null
-          ? (data['endedAt'] as dynamic).toDate()
-          : null,
+      createdAt: _dateFromValue(data['createdAt']),
+      startedAt: _nullableDateFromValue(data['startedAt']),
+      endedAt: _nullableDateFromValue(data['endedAt']),
     );
   }
 

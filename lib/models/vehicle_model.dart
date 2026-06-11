@@ -23,6 +23,11 @@ class Vehicle {
     this.isActive = true,
   });
 
+  static DateTime _dateFromValue(dynamic value) {
+    if (value is DateTime) return value;
+    return value?.toDate() ?? DateTime.now();
+  }
+
   factory Vehicle.fromMap(Map<String, dynamic> data, String documentId) {
     return Vehicle(
       id: documentId,
@@ -37,7 +42,7 @@ class Vehicle {
               .toList() ??
           const [],
       color: data['color'] ?? '',
-      createdAt: (data['createdAt'] as dynamic)?.toDate() ?? DateTime.now(),
+      createdAt: _dateFromValue(data['createdAt']),
       isActive: data['isActive'] ?? true,
     );
   }

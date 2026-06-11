@@ -19,6 +19,17 @@ class Booking {
     this.cancelledDate,
   });
 
+  static DateTime _dateFromValue(dynamic value) {
+    if (value is DateTime) return value;
+    return value?.toDate() ?? DateTime.now();
+  }
+
+  static DateTime? _nullableDateFromValue(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    return value.toDate();
+  }
+
   factory Booking.fromMap(Map<String, dynamic> data, String documentId) {
     return Booking(
       id: documentId,
@@ -27,10 +38,8 @@ class Booking {
       seatsBooked: data['seatsBooked'] ?? 0,
       totalFare: (data['totalFare'] ?? 0.0).toDouble(),
       status: data['status'] ?? 'confirmed',
-      bookingDate: (data['bookingDate'] as dynamic)?.toDate() ?? DateTime.now(),
-      cancelledDate: data['cancelledDate'] != null 
-          ? (data['cancelledDate'] as dynamic).toDate() 
-          : null,
+      bookingDate: _dateFromValue(data['bookingDate']),
+      cancelledDate: _nullableDateFromValue(data['cancelledDate']),
     );
   }
 

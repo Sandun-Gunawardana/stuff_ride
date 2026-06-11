@@ -7,7 +7,6 @@ import 'package:stuff_ride/services/auth_service.dart';
 import 'package:stuff_ride/services/firestore_service.dart';
 import 'notifications_screen.dart';
 import 'passenger_dashboard.dart';
-import 'vehicle_detail_screen.dart';
 
 class PassengerHomeScreen extends StatefulWidget {
   const PassengerHomeScreen({super.key});
@@ -210,13 +209,8 @@ class _HomeTab extends StatelessWidget {
                 child: FilledButton.icon(
                   onPressed: onViewVehicles,
                   icon: const Icon(Icons.directions_bus),
-                  label: const Text('View available vehicles'),
+                  label: const Text('View available vehicles and rides'),
                 ),
-              ),
-              const SizedBox(height: 16),
-              _AvailableVehiclePreview(
-                auth: auth,
-                firestoreService: firestoreService,
               ),
             ],
           );
@@ -308,7 +302,7 @@ class _BookingsTab extends StatelessWidget {
                 child: FilledButton.icon(
                   onPressed: onViewVehicles,
                   icon: const Icon(Icons.directions_bus),
-                  label: const Text('View available vehicles'),
+                  label: const Text('View available vehicles and rides'),
                 ),
               ),
             ],
@@ -381,103 +375,6 @@ class _BookingsTab extends StatelessWidget {
                 },
               ),
           ],
-        );
-      },
-    );
-  }
-}
-
-class _VehicleCard extends StatelessWidget {
-  final Vehicle vehicle;
-  final String actionLabel;
-  final VoidCallback onTap;
-
-  const _VehicleCard({
-    required this.vehicle,
-    required this.actionLabel,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: const CircleAvatar(child: Icon(Icons.directions_bus)),
-        title: Text(vehicle.vehicleNumber),
-        subtitle: Text(
-          '${vehicle.vehicleType} • ${vehicle.seatCapacity} seats • ${vehicle.color}',
-        ),
-        trailing: TextButton(onPressed: onTap, child: Text(actionLabel)),
-        onTap: onTap,
-      ),
-    );
-  }
-}
-
-class _AvailableVehiclePreview extends StatelessWidget {
-  final FirebaseAuth auth;
-  final FirestoreService firestoreService;
-
-  const _AvailableVehiclePreview({
-    required this.auth,
-    required this.firestoreService,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final user = auth.currentUser;
-    if (user == null) {
-      return const SizedBox.shrink();
-    }
-
-    return FutureBuilder<String>(
-      future: firestoreService.getUserCompanyId(user.uid),
-      builder: (context, companySnapshot) {
-        if (companySnapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final companyId =
-            companySnapshot.data ?? FirestoreService.defaultCompanyId;
-
-        return StreamBuilder<List<Vehicle>>(
-          stream: firestoreService.getCompanyActiveVehicles(companyId),
-          builder: (context, snapshot) {
-            final vehicles = snapshot.data ?? [];
-            final previewVehicles = vehicles.take(3).toList();
-
-            if (previewVehicles.isEmpty) {
-              return const SizedBox.shrink();
-            }
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Available vehicles',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 12),
-                for (final vehicle in previewVehicles)
-                  _VehicleCard(
-                    vehicle: vehicle,
-                    actionLabel: 'View',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => VehicleDetailScreen(
-                            vehicleId: vehicle.id,
-                            vehicleData: vehicle.toMap(),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-              ],
-            );
-          },
         );
       },
     );

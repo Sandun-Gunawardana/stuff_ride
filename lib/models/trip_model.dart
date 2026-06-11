@@ -23,20 +23,29 @@ class Trip {
     required this.createdAt,
   });
 
+  static DateTime _dateFromValue(dynamic value) {
+    if (value is DateTime) return value;
+    return value?.toDate() ?? DateTime.now();
+  }
+
+  static DateTime? _nullableDateFromValue(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    return value.toDate();
+  }
+
   factory Trip.fromMap(Map<String, dynamic> data, String documentId) {
     return Trip(
       id: documentId,
       driverId: data['driverId'] ?? '',
       vehicleId: data['vehicleId'] ?? '',
       routeId: data['routeId'] ?? '',
-      departureTime: (data['departureTime'] as dynamic)?.toDate() ?? DateTime.now(),
-      arrivalTime: data['arrivalTime'] != null 
-          ? (data['arrivalTime'] as dynamic).toDate() 
-          : null,
+      departureTime: _dateFromValue(data['departureTime']),
+      arrivalTime: _nullableDateFromValue(data['arrivalTime']),
       status: data['status'] ?? 'scheduled',
       availableSeats: data['availableSeats'] ?? 0,
       fare: (data['fare'] ?? 0.0).toDouble(),
-      createdAt: (data['createdAt'] as dynamic)?.toDate() ?? DateTime.now(),
+      createdAt: _dateFromValue(data['createdAt']),
     );
   }
 

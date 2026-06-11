@@ -21,6 +21,11 @@ class Route {
     this.isActive = true,
   });
 
+  static DateTime _dateFromValue(dynamic value) {
+    if (value is DateTime) return value;
+    return value?.toDate() ?? DateTime.now();
+  }
+
   factory Route.fromMap(Map<String, dynamic> data, String documentId) {
     return Route(
       id: documentId,
@@ -30,7 +35,7 @@ class Route {
       pickupLocation: data['pickupLocation'] ?? '',
       dropoffLocation: data['dropoffLocation'] ?? '',
       stops: List<String>.from(data['stops'] ?? []),
-      createdAt: (data['createdAt'] as dynamic)?.toDate() ?? DateTime.now(),
+      createdAt: _dateFromValue(data['createdAt']),
       isActive: data['isActive'] ?? true,
     );
   }

@@ -19,6 +19,11 @@ class LiveLocation {
     this.accuracy,
   });
 
+  static DateTime _dateFromValue(dynamic value) {
+    if (value is DateTime) return value;
+    return value?.toDate() ?? DateTime.now();
+  }
+
   factory LiveLocation.fromMap(Map<String, dynamic> data, String documentId) {
     return LiveLocation(
       id: documentId,
@@ -26,9 +31,13 @@ class LiveLocation {
       driverId: data['driverId'] ?? '',
       latitude: (data['latitude'] ?? 0.0).toDouble(),
       longitude: (data['longitude'] ?? 0.0).toDouble(),
-      timestamp: (data['timestamp'] as dynamic)?.toDate() ?? DateTime.now(),
-      speed: data['speed'] != null ? (data['speed'] as dynamic).toDouble() : null,
-      accuracy: data['accuracy'] != null ? (data['accuracy'] as dynamic).toDouble() : null,
+      timestamp: _dateFromValue(data['timestamp']),
+      speed: data['speed'] != null
+          ? (data['speed'] as dynamic).toDouble()
+          : null,
+      accuracy: data['accuracy'] != null
+          ? (data['accuracy'] as dynamic).toDouble()
+          : null,
     );
   }
 

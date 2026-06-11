@@ -193,12 +193,13 @@ class FirestoreService {
     return _firestore
         .collection('rides')
         .where('driverId', isEqualTo: driverId)
-        .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-          return snapshot.docs
+          final rides = snapshot.docs
               .map((doc) => Ride.fromMap(doc.data(), doc.id))
               .toList();
+          rides.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return rides;
         });
   }
 
@@ -206,12 +207,13 @@ class FirestoreService {
     return _firestore
         .collection('rides')
         .where('vehicleId', isEqualTo: vehicleId)
-        .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-          return snapshot.docs
+          final rides = snapshot.docs
               .map((doc) => Ride.fromMap(doc.data(), doc.id))
               .toList();
+          rides.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return rides;
         });
   }
 
