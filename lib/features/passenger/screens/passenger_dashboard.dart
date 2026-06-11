@@ -77,8 +77,14 @@ class _PassengerDashboardState extends State<PassengerDashboard> {
     });
 
     try {
-      final pickupLocation = await Navigator.push<PickupLocation>(
-        context,
+      final passengerProfile = await _firestoreService.getUserById(
+        passenger.uid,
+      );
+      final passengerName = passengerProfile?.fullName;
+      final passengerDisplayName = passengerName?.trim();
+      if (!mounted) return;
+      final navigator = Navigator.of(context);
+      final pickupLocation = await navigator.push<PickupLocation>(
         MaterialPageRoute(builder: (_) => const PickupLocationPicker()),
       );
 
@@ -94,6 +100,10 @@ class _PassengerDashboardState extends State<PassengerDashboard> {
       await _firestoreService.bookVehicleSeat(
         vehicleId: widget.vehicleId,
         passengerId: passenger.uid,
+        passengerName:
+            passengerDisplayName != null && passengerDisplayName.isNotEmpty
+            ? passengerDisplayName
+            : 'Passenger',
         seatNumber: seatNumber,
         pickupLocation: pickupLocation.label,
         pickupLatitude: pickupLocation.latitude,

@@ -5,6 +5,7 @@ class Vehicle {
   final String vehicleNumber;
   final String vehicleType;
   final int seatCapacity;
+  final int bookingResetMinutes;
   final List<Map<String, dynamic>> seatLayout;
   final String color;
   final DateTime createdAt;
@@ -17,6 +18,7 @@ class Vehicle {
     required this.vehicleNumber,
     required this.vehicleType,
     required this.seatCapacity,
+    this.bookingResetMinutes = 60,
     this.seatLayout = const [],
     required this.color,
     required this.createdAt,
@@ -31,6 +33,7 @@ class Vehicle {
       vehicleNumber: data['vehicleNumber'] ?? '',
       vehicleType: data['vehicleType'] ?? '',
       seatCapacity: data['seatCapacity'] ?? 0,
+      bookingResetMinutes: (data['bookingResetMinutes'] as num?)?.toInt() ?? 60,
       seatLayout:
           (data['seatLayout'] as List<dynamic>?)
               ?.map((row) => Map<String, dynamic>.from(row as Map))
@@ -49,6 +52,7 @@ class Vehicle {
       'vehicleNumber': vehicleNumber,
       'vehicleType': vehicleType,
       'seatCapacity': seatCapacity,
+      'bookingResetMinutes': bookingResetMinutes,
       'seatLayout': seatLayout,
       'color': color,
       'createdAt': createdAt,

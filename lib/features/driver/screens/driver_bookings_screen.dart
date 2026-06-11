@@ -21,12 +21,22 @@ class _DriverBookingsScreenState extends State<DriverBookingsScreen> {
   final TextEditingController _roadController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
   StreamSubscription<Position>? _positionSubscription;
+  Timer? _bookingResetTimer;
   bool _isUpdatingTrip = false;
   bool _isGpsTracking = false;
 
   @override
+  void initState() {
+    super.initState();
+    _bookingResetTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      _firestoreService.ensureVehicleBookingSessionOpen(widget.vehicle.id);
+    });
+  }
+
+  @override
   void dispose() {
     _positionSubscription?.cancel();
+    _bookingResetTimer?.cancel();
     _roadController.dispose();
     _locationController.dispose();
     super.dispose();
@@ -65,6 +75,7 @@ class _DriverBookingsScreenState extends State<DriverBookingsScreen> {
           driverId: driver.uid,
           roadDescription: road,
           currentLocation: location,
+          bookingResetMinutes: widget.vehicle.bookingResetMinutes,
         );
         await _startGpsTracking();
       } else {
@@ -191,6 +202,7 @@ class _DriverBookingsScreenState extends State<DriverBookingsScreen> {
             const SizedBox(height: 12),
             _TripProgressCard(
               vehicleId: widget.vehicle.id,
+              bookingResetMinutes: widget.vehicle.bookingResetMinutes,
               roadController: _roadController,
               locationController: _locationController,
               firestoreService: _firestoreService,
@@ -272,6 +284,7 @@ class _VehicleHeader extends StatelessWidget {
 
 class _TripProgressCard extends StatelessWidget {
   final String vehicleId;
+  final int bookingResetMinutes;
   final TextEditingController roadController;
   final TextEditingController locationController;
   final FirestoreService firestoreService;
@@ -282,6 +295,7 @@ class _TripProgressCard extends StatelessWidget {
 
   const _TripProgressCard({
     required this.vehicleId,
+    required this.bookingResetMinutes,
     required this.roadController,
     required this.locationController,
     required this.firestoreService,
@@ -341,6 +355,12 @@ class _TripProgressCard extends StatelessWidget {
                 ],
                 if (data?['currentLocation'] != null)
                   Text('Current: ${data!['currentLocation']}'),
+                if (data?['bookingSessionEndsAt'] != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Booking resets every $bookingResetMinutes minutes while the trip is active.',
+                  ),
+                ],
                 const SizedBox(height: 12),
                 TextField(
                   controller: roadController,
@@ -378,6 +398,16 @@ class _TripProgressCard extends StatelessWidget {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: isOngoing
+                      ? () async {
+                          await firestoreService.endVehicleTrip(vehicleId);
+                        }
+                      : null,
+                  icon: const Icon(Icons.stop_circle_outlined),
+                  label: const Text('End Trip'),
                 ),
               ],
             ),

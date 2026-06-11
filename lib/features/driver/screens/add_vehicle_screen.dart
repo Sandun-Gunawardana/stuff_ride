@@ -19,6 +19,8 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
   final TextEditingController _seatCapacityController = TextEditingController();
   final TextEditingController _vehicleTypeController = TextEditingController();
   final TextEditingController _colorController = TextEditingController();
+  final TextEditingController _bookingResetMinutesController =
+      TextEditingController();
   final FirestoreService _firestoreService = FirestoreService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _isLoading = false;
@@ -35,6 +37,8 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       _seatCapacityController.text = vehicle.seatCapacity.toString();
       _vehicleTypeController.text = vehicle.vehicleType;
       _colorController.text = vehicle.color;
+      _bookingResetMinutesController.text = vehicle.bookingResetMinutes
+          .toString();
       _seatLayout = vehicle.seatLayout;
     }
   }
@@ -45,6 +49,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     _seatCapacityController.dispose();
     _vehicleTypeController.dispose();
     _colorController.dispose();
+    _bookingResetMinutesController.dispose();
     super.dispose();
   }
 
@@ -63,6 +68,14 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       return;
     }
 
+    final bookingResetMinutes = int.tryParse(
+      _bookingResetMinutesController.text,
+    );
+    if (bookingResetMinutes == null || bookingResetMinutes <= 0) {
+      _showErrorDialog('Booking reset time must be a valid number of minutes');
+      return;
+    }
+
     final layout = await Navigator.push<List<Map<String, dynamic>>>(
       context,
       MaterialPageRoute(
@@ -76,10 +89,16 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     if (layout == null) return;
 
     _seatLayout = layout;
-    await _saveVehicle(seatCapacity: seatCapacity);
+    await _saveVehicle(
+      seatCapacity: seatCapacity,
+      bookingResetMinutes: bookingResetMinutes,
+    );
   }
 
-  Future<void> _saveVehicle({required int seatCapacity}) async {
+  Future<void> _saveVehicle({
+    required int seatCapacity,
+    required int bookingResetMinutes,
+  }) async {
     setState(() {
       _isLoading = true;
     });
@@ -101,6 +120,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
           seatLayout: _seatLayout,
           vehicleType: _vehicleTypeController.text.trim(),
           color: _colorController.text.trim(),
+          bookingResetMinutes: bookingResetMinutes,
           createdAt: existingVehicle?.createdAt ?? DateTime.now(),
           isActive: true,
         );
@@ -216,6 +236,20 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                 ),
               ),
               const SizedBox(height: 30),
+              TextField(
+                controller: _bookingResetMinutesController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: "Booking Reset Minutes",
+                  hintText: "e.g., 30, 60, 120",
+                  helperText:
+                      "Bookings will automatically reset after this time while the trip is active.",
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
               SizedBox(
                 height: 50,
                 child: ElevatedButton(

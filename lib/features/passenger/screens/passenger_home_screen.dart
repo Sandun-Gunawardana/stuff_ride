@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:stuff_ride/features/auth/screens/login_screen.dart';
+import 'package:stuff_ride/features/passenger/screens/vehicle_list_screen.dart';
 import 'package:stuff_ride/models/vehicle_model.dart';
 import 'package:stuff_ride/services/auth_service.dart';
 import 'package:stuff_ride/services/firestore_service.dart';
@@ -31,9 +32,52 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     }
   }
 
+  Future<void> _openAvailableVehicles() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const VehicleListScreen()),
+    );
+  }
+
+  int? _seatNumberFromBooking(dynamic bookingData) {
+    if (bookingData is Map<String, dynamic>) {
+      final seatNumber = bookingData['seatNumber'];
+      if (seatNumber is int) return seatNumber;
+      if (seatNumber is num) return seatNumber.toInt();
+    }
+    return null;
+  }
+
+  Future<void> _changeVehicle(Map<String, dynamic> bookingData) async {
+    final passenger = _auth.currentUser;
+    if (passenger == null) return;
+
+    final vehicleId = bookingData['vehicleId'] as String?;
+    final seatNumber = _seatNumberFromBooking(bookingData['booking']);
+
+    if (vehicleId == null || seatNumber == null) return;
+
+    try {
+      await _firestoreService.unbookVehicleSeat(
+        vehicleId: vehicleId,
+        passengerId: passenger.uid,
+        seatNumber: seatNumber,
+      );
+
+      if (!mounted) return;
+      await _openAvailableVehicles();
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final titles = ['Staff Transport', 'My Bookings', 'Settings'];
+    final titles = ['Home', 'My Booking', 'Settings'];
 
     return Scaffold(
       appBar: AppBar(
@@ -59,11 +103,28 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
       body: IndexedStack(
         index: _selectedTabIndex,
         children: [
-          _AvailableVehiclesTab(
+          _HomeTab(
             auth: _auth,
             firestoreService: _firestoreService,
+            onViewVehicles: _openAvailableVehicles,
+            onChangeVehicle: _changeVehicle,
+            onViewSeat: (vehicle) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PassengerDashboard(
+                    vehicleId: vehicle.id,
+                    vehicleData: vehicle.toMap(),
+                  ),
+                ),
+              );
+            },
           ),
-          _BookingsTab(auth: _auth, firestoreService: _firestoreService),
+          _BookingsTab(
+            auth: _auth,
+            firestoreService: _firestoreService,
+            onViewVehicles: _openAvailableVehicles,
+          ),
           _SettingsTab(onLogout: _logout),
         ],
       ),
@@ -90,13 +151,19 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
   }
 }
 
-class _AvailableVehiclesTab extends StatelessWidget {
+class _HomeTab extends StatelessWidget {
   final FirebaseAuth auth;
   final FirestoreService firestoreService;
+  final VoidCallback onViewVehicles;
+  final Future<void> Function(Map<String, dynamic> booking) onChangeVehicle;
+  final void Function(Vehicle vehicle) onViewSeat;
 
-  const _AvailableVehiclesTab({
+  const _HomeTab({
     required this.auth,
     required this.firestoreService,
+    required this.onViewVehicles,
+    required this.onChangeVehicle,
+    required this.onViewSeat,
   });
 
   @override
@@ -107,68 +174,76 @@ class _AvailableVehiclesTab extends StatelessWidget {
       return const Center(child: Text('Please log in to view vehicles'));
     }
 
-    return FutureBuilder<String>(
-      future: firestoreService.getUserCompanyId(user.uid),
-      builder: (context, companySnapshot) {
-        if (companySnapshot.connectionState == ConnectionState.waiting) {
+    return StreamBuilder<Map<String, dynamic>?>(
+      stream: firestoreService.watchPassengerActiveBookingDetails(user.uid),
+      builder: (context, bookingSnapshot) {
+        if (bookingSnapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final companyId =
-            companySnapshot.data ?? FirestoreService.defaultCompanyId;
-
-        return StreamBuilder<List<Vehicle>>(
-          stream: firestoreService.getCompanyActiveVehicles(companyId),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            final vehicles = snapshot.data ?? [];
-
-            if (vehicles.isEmpty) {
-              return const _EmptyState(
-                icon: Icons.directions_bus,
-                title: 'No vehicles available',
+        final bookingData = bookingSnapshot.data;
+        if (bookingData == null) {
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              const _EmptyState(
+                icon: Icons.event_seat,
+                title: 'No booking for today',
                 message:
-                    'Vehicles added by drivers in your company circle will appear here.',
-              );
-            }
+                    'Your confirmed ride will appear here after a driver opens the booking window.',
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: 52,
+                child: FilledButton.icon(
+                  onPressed: onViewVehicles,
+                  icon: const Icon(Icons.directions_bus),
+                  label: const Text('View available vehicles'),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _AvailableVehiclePreview(
+                auth: auth,
+                firestoreService: firestoreService,
+              ),
+            ],
+          );
+        }
 
-            return ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                Text(
-                  'Available Vehicles',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Showing vehicles from your company circle',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 16),
-                for (final vehicle in vehicles)
-                  _VehicleCard(
-                    vehicle: vehicle,
-                    actionLabel: 'View',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => VehicleDetailScreen(
-                            vehicleId: vehicle.id,
-                            vehicleData: vehicle.toMap(),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-              ],
-            );
-          },
+        final vehicleMap = Map<String, dynamic>.from(
+          bookingData['vehicle'] as Map,
+        );
+        final bookingMap = Map<String, dynamic>.from(
+          bookingData['booking'] as Map,
+        );
+        final vehicle = Vehicle.fromMap(
+          vehicleMap,
+          bookingData['vehicleId'] as String,
+        );
+        final seatNumber = bookingMap['seatNumber'];
+        final pickupLocation = bookingMap['pickupLocation'] ?? 'Pickup pending';
+
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Text(
+              'My active booking',
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            _ActiveRideCard(
+              vehicle: vehicle,
+              seatNumber: seatNumber is int ? seatNumber : null,
+              pickupLocation: pickupLocation.toString(),
+              onViewSeat: () => onViewSeat(vehicle),
+              onChangeVehicle: () => onChangeVehicle(bookingData),
+              locationStream: firestoreService.getLatestVehicleLocation(
+                vehicle.id,
+              ),
+            ),
+          ],
         );
       },
     );
@@ -178,8 +253,13 @@ class _AvailableVehiclesTab extends StatelessWidget {
 class _BookingsTab extends StatelessWidget {
   final FirebaseAuth auth;
   final FirestoreService firestoreService;
+  final VoidCallback onViewVehicles;
 
-  const _BookingsTab({required this.auth, required this.firestoreService});
+  const _BookingsTab({
+    required this.auth,
+    required this.firestoreService,
+    required this.onViewVehicles,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -199,10 +279,25 @@ class _BookingsTab extends StatelessWidget {
         final bookings = snapshot.data ?? [];
 
         if (bookings.isEmpty) {
-          return const _EmptyState(
-            icon: Icons.event_seat,
-            title: 'No booked vehicles yet',
-            message: 'Book a seat from the Home tab and it will appear here.',
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              const _EmptyState(
+                icon: Icons.event_seat,
+                title: 'No booked vehicles yet',
+                message:
+                    'Once your seat is confirmed, your current vehicle appears here.',
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: 52,
+                child: FilledButton.icon(
+                  onPressed: onViewVehicles,
+                  icon: const Icon(Icons.directions_bus),
+                  label: const Text('View available vehicles'),
+                ),
+              ),
+            ],
           );
         }
 
@@ -210,10 +305,15 @@ class _BookingsTab extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           children: [
             Text(
-              'Booked Vehicles',
+              'Current booking',
               style: Theme.of(
                 context,
               ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'One passenger can keep one active seat at a time.',
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 16),
             for (final item in bookings)
@@ -297,6 +397,194 @@ class _VehicleCard extends StatelessWidget {
   }
 }
 
+class _AvailableVehiclePreview extends StatelessWidget {
+  final FirebaseAuth auth;
+  final FirestoreService firestoreService;
+
+  const _AvailableVehiclePreview({
+    required this.auth,
+    required this.firestoreService,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final user = auth.currentUser;
+    if (user == null) {
+      return const SizedBox.shrink();
+    }
+
+    return FutureBuilder<String>(
+      future: firestoreService.getUserCompanyId(user.uid),
+      builder: (context, companySnapshot) {
+        if (companySnapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final companyId =
+            companySnapshot.data ?? FirestoreService.defaultCompanyId;
+
+        return StreamBuilder<List<Vehicle>>(
+          stream: firestoreService.getCompanyActiveVehicles(companyId),
+          builder: (context, snapshot) {
+            final vehicles = snapshot.data ?? [];
+            final previewVehicles = vehicles.take(3).toList();
+
+            if (previewVehicles.isEmpty) {
+              return const SizedBox.shrink();
+            }
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Available vehicles',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 12),
+                for (final vehicle in previewVehicles)
+                  _VehicleCard(
+                    vehicle: vehicle,
+                    actionLabel: 'View',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => VehicleDetailScreen(
+                            vehicleId: vehicle.id,
+                            vehicleData: vehicle.toMap(),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _ActiveRideCard extends StatelessWidget {
+  final Vehicle vehicle;
+  final int? seatNumber;
+  final String pickupLocation;
+  final VoidCallback onViewSeat;
+  final VoidCallback onChangeVehicle;
+  final Stream<dynamic> locationStream;
+
+  const _ActiveRideCard({
+    required this.vehicle,
+    required this.seatNumber,
+    required this.pickupLocation,
+    required this.onViewSeat,
+    required this.onChangeVehicle,
+    required this.locationStream,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const CircleAvatar(child: Icon(Icons.directions_bus)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        vehicle.vehicleNumber,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      Text(
+                        '${vehicle.vehicleType} • Seat ${seatNumber ?? '-'}',
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text('Pickup point', style: Theme.of(context).textTheme.labelLarge),
+            const SizedBox(height: 4),
+            Text(pickupLocation),
+            const SizedBox(height: 16),
+            StreamBuilder<dynamic>(
+              stream: locationStream,
+              builder: (context, snapshot) {
+                final data = snapshot.data?.data() as Map<String, dynamic>?;
+                final currentLocation = data?['currentLocation'] as String?;
+                final road = data?['roadDescription'] as String?;
+                final latitude = data?['latitude'];
+                final longitude = data?['longitude'];
+
+                return Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Live location',
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        currentLocation ??
+                            road ??
+                            'Waiting for the driver location update',
+                      ),
+                      if (latitude is num && longitude is num) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          '${latitude.toStringAsFixed(5)}, ${longitude.toStringAsFixed(5)}',
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: onViewSeat,
+                    icon: const Icon(Icons.event_seat),
+                    label: const Text('View seat'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: onChangeVehicle,
+                    icon: const Icon(Icons.swap_horiz),
+                    label: const Text('Change vehicle'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _BookedVehicleCard extends StatelessWidget {
   final Map<String, dynamic> item;
   final VoidCallback onTap;
@@ -313,6 +601,7 @@ class _BookedVehicleCard extends StatelessWidget {
     final booking = item['booking'] as Map<String, dynamic>;
     final vehicle = item['vehicle'] as Map<String, dynamic>;
     final seatNumber = booking['seatNumber'];
+    final pickup = booking['pickupLocation'] ?? 'Pickup not set';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -320,8 +609,9 @@ class _BookedVehicleCard extends StatelessWidget {
         leading: const CircleAvatar(child: Icon(Icons.event_available)),
         title: Text(vehicle['vehicleNumber'] ?? 'Vehicle'),
         subtitle: Text(
-          '${vehicle['vehicleType'] ?? 'Vehicle'} • Seat ${seatNumber ?? '-'}',
+          '${vehicle['vehicleType'] ?? 'Vehicle'} • Seat ${seatNumber ?? '-'}\n$pickup',
         ),
+        isThreeLine: true,
         trailing: TextButton.icon(
           onPressed: onUnbook,
           icon: const Icon(Icons.event_busy),
