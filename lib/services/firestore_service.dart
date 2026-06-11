@@ -627,6 +627,8 @@ class FirestoreService {
         'seatsBooked': 1,
         'totalFare': 0.0,
         'status': 'confirmed',
+        'pickupStatus': 'waiting',
+        'pickedUp': false,
         'bookingDate': Timestamp.fromDate(now),
       };
 
@@ -641,9 +643,26 @@ class FirestoreService {
         'pickupLocation': pickupLocation,
         'pickupLatitude': pickupLatitude,
         'pickupLongitude': pickupLongitude,
+        'pickupStatus': 'waiting',
+        'pickedUp': false,
         'bookingDate': Timestamp.fromDate(now),
       });
     });
+  }
+
+  Future<void> updatePassengerPickupStatus({
+    required String bookingId,
+    required bool pickedUp,
+  }) async {
+    final now = DateTime.now().toUtc();
+    final update = <String, dynamic>{
+      'pickedUp': pickedUp,
+      'pickupStatus': pickedUp ? 'picked' : 'waiting',
+      'pickupStatusUpdatedAt': Timestamp.fromDate(now),
+      'pickedUpAt': pickedUp ? Timestamp.fromDate(now) : null,
+    };
+
+    await _firestore.collection('bookings').doc(bookingId).update(update);
   }
 
   Future<void> unbookVehicleSeat({

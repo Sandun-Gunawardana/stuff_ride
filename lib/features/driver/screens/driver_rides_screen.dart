@@ -144,6 +144,7 @@ class _DriverRidesScreenState extends State<DriverRidesScreen> {
                       _RideCard(
                         ride: ride,
                         isStarting: _isStartingRide && _activeRideId == ride.id,
+                        firestoreService: _firestoreService,
                         onStart: ride.status == 'scheduled'
                             ? () => _startRide(ride)
                             : null,
@@ -202,6 +203,7 @@ class _VehicleHeader extends StatelessWidget {
 class _RideCard extends StatelessWidget {
   final Ride ride;
   final bool isStarting;
+  final FirestoreService firestoreService;
   final VoidCallback? onStart;
   final VoidCallback? onEnd;
   final Stream<List<Map<String, dynamic>>> bookingsStream;
@@ -209,6 +211,7 @@ class _RideCard extends StatelessWidget {
   const _RideCard({
     required this.ride,
     required this.isStarting,
+    required this.firestoreService,
     required this.onStart,
     required this.onEnd,
     required this.bookingsStream,
@@ -250,14 +253,25 @@ class _RideCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
-                        'Booked seats',
+                        'Passenger pickup list',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 8),
                       if (bookings.isEmpty)
                         const Text('No seats booked yet')
                       else
-                        for (final item in bookings) _BookingTile(item: item),
+                        for (final item in bookings)
+                          _BookingTile(
+                            item: item,
+                            onPickupStatusChanged:
+                                ({required bookingId, required pickedUp}) {
+                                  return firestoreService
+                                      .updatePassengerPickupStatus(
+                                        bookingId: bookingId,
+                                        pickedUp: pickedUp,
+                                      );
+                                },
+                          ),
                     ],
                   );
                 },
@@ -297,18 +311,80 @@ class _RideCard extends StatelessWidget {
 
 class _BookingTile extends StatelessWidget {
   final Map<String, dynamic> item;
+  final Future<void> Function({
+    required String bookingId,
+    required bool pickedUp,
+  })
+  onPickupStatusChanged;
 
-  const _BookingTile({required this.item});
+  const _BookingTile({required this.item, required this.onPickupStatusChanged});
 
   @override
   Widget build(BuildContext context) {
+    final bookingId = item['bookingId'] as String? ?? '';
     final booking = item['booking'] as Map<String, dynamic>;
     final passenger = item['passenger'] as Map<String, dynamic>?;
+    final pickedUp =
+        booking['pickedUp'] == true || booking['pickupStatus'] == 'picked';
+    final passengerName =
+        passenger?['fullName'] ?? booking['passengerName'] ?? 'Passenger';
+    final pickupLocation = booking['pickupLocation'] ?? 'Pickup not set';
+    final textStyle = pickedUp
+        ? const TextStyle(
+            decoration: TextDecoration.lineThrough,
+            color: Colors.grey,
+          )
+        : null;
 
     return ListTile(
-      leading: CircleAvatar(child: Text('${booking['seatNumber'] ?? '-'}')),
-      title: Text(passenger?['fullName'] ?? 'Passenger'),
-      subtitle: Text(booking['pickupLocation'] ?? 'Pickup not set'),
+      contentPadding: EdgeInsets.zero,
+      leading: CircleAvatar(
+        backgroundColor: pickedUp ? Colors.green : null,
+        child: pickedUp
+            ? const Icon(Icons.check, color: Colors.white)
+            : Text('${booking['seatNumber'] ?? '-'}'),
+      ),
+      title: Text(passengerName, style: textStyle),
+      subtitle: Text(
+        'Seat ${booking['seatNumber'] ?? '-'} • $pickupLocation\n${pickedUp ? 'Picked up' : 'Still waiting'}',
+        style: textStyle,
+      ),
+      isThreeLine: true,
+      trailing: IconButton(
+        tooltip: pickedUp ? 'Mark as waiting' : 'Mark as picked up',
+        onPressed: bookingId.isEmpty
+            ? null
+            : () async {
+                try {
+                  await onPickupStatusChanged(
+                    bookingId: bookingId,
+                    pickedUp: !pickedUp,
+                  );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          pickedUp
+                              ? '$passengerName marked as waiting'
+                              : '$passengerName marked as picked up',
+                        ),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          e.toString().replaceFirst('Exception: ', ''),
+                        ),
+                      ),
+                    );
+                  }
+                }
+              },
+        icon: Icon(pickedUp ? Icons.undo : Icons.person_pin_circle),
+      ),
     );
   }
 }
