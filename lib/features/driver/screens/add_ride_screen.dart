@@ -6,20 +6,33 @@ import 'package:stuff_ride/services/firestore_service.dart';
 
 class AddRideScreen extends StatefulWidget {
   final Vehicle vehicle;
+  final Ride? ride;
 
-  const AddRideScreen({super.key, required this.vehicle});
+  const AddRideScreen({super.key, required this.vehicle, this.ride});
 
   @override
   State<AddRideScreen> createState() => _AddRideScreenState();
 }
 
 class _AddRideScreenState extends State<AddRideScreen> {
-  final TextEditingController _rideNameController = TextEditingController();
-  final TextEditingController _bookingStartTimeController =
-      TextEditingController(text: '06:00');
+  late final TextEditingController _rideNameController;
+  late final TextEditingController _bookingStartTimeController;
   final FirestoreService _firestoreService = FirestoreService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _isLoading = false;
+
+  bool get _isEditing => widget.ride != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _rideNameController = TextEditingController(
+      text: widget.ride?.rideName ?? '',
+    );
+    _bookingStartTimeController = TextEditingController(
+      text: widget.ride?.bookingStartTime ?? '06:00',
+    );
+  }
 
   @override
   void dispose() {
@@ -56,21 +69,41 @@ class _AddRideScreenState extends State<AddRideScreen> {
       final companyId = await _firestoreService.getUserCompanyId(
         currentUser.uid,
       );
+      final existingRide = widget.ride;
       final ride = Ride(
-        id: '',
-        driverId: currentUser.uid,
-        vehicleId: widget.vehicle.id,
-        companyId: companyId,
+        id: existingRide?.id ?? '',
+        driverId: existingRide?.driverId ?? currentUser.uid,
+        vehicleId: existingRide?.vehicleId ?? widget.vehicle.id,
+        companyId: existingRide?.companyId ?? companyId,
         rideName: rideName,
         bookingStartTime: bookingStartTime,
-        createdAt: DateTime.now(),
+        status: existingRide?.status ?? 'scheduled',
+        roadDescription: existingRide?.roadDescription ?? '',
+        currentLocation: existingRide?.currentLocation ?? '',
+        lastLatitude: existingRide?.lastLatitude,
+        lastLongitude: existingRide?.lastLongitude,
+        lastAccuracy: existingRide?.lastAccuracy,
+        lastSpeed: existingRide?.lastSpeed,
+        createdAt: existingRide?.createdAt ?? DateTime.now(),
+        startedAt: existingRide?.startedAt,
+        endedAt: existingRide?.endedAt,
       );
 
-      await _firestoreService.addRide(ride);
+      if (_isEditing) {
+        await _firestoreService.updateRide(ride);
+      } else {
+        await _firestoreService.addRide(ride);
+      }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ride created successfully')),
+        SnackBar(
+          content: Text(
+            _isEditing
+                ? 'Ride updated successfully'
+                : 'Ride created successfully',
+          ),
+        ),
       );
       Navigator.pop(context);
     } catch (e) {
@@ -103,7 +136,7 @@ class _AddRideScreenState extends State<AddRideScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Ride')),
+      appBar: AppBar(title: Text(_isEditing ? 'Edit Ride' : 'Add Ride')),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(24),
@@ -151,7 +184,7 @@ class _AddRideScreenState extends State<AddRideScreen> {
                         width: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Create Ride'),
+                    : Text(_isEditing ? 'Save Changes' : 'Create Ride'),
               ),
             ),
           ],

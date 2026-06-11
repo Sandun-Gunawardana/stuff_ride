@@ -189,6 +189,11 @@ class FirestoreService {
     await _firestore.collection('rides').doc(ride.id).update(ride.toMap());
   }
 
+  Future<void> deleteRide(String rideId) async {
+    await _clearRideBookings(rideId);
+    await _rideRef(rideId).delete();
+  }
+
   Stream<List<Ride>> getDriverRides(String driverId) {
     return _firestore
         .collection('rides')
