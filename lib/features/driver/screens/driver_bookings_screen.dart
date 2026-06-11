@@ -18,8 +18,6 @@ class DriverBookingsScreen extends StatefulWidget {
 class _DriverBookingsScreenState extends State<DriverBookingsScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final TextEditingController _roadController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController();
   StreamSubscription<Position>? _positionSubscription;
   Timer? _bookingResetTimer;
   bool _isUpdatingTrip = false;
@@ -37,60 +35,32 @@ class _DriverBookingsScreenState extends State<DriverBookingsScreen> {
   void dispose() {
     _positionSubscription?.cancel();
     _bookingResetTimer?.cancel();
-    _roadController.dispose();
-    _locationController.dispose();
     super.dispose();
   }
 
   Future<void> _startTrip() async {
-    await _saveTripProgress(startTrip: true);
-  }
-
-  Future<void> _updateProgress() async {
-    await _saveTripProgress(startTrip: false);
-  }
-
-  Future<void> _saveTripProgress({required bool startTrip}) async {
     final driver = _auth.currentUser;
-    final road = _roadController.text.trim();
-    final location = _locationController.text.trim();
-
     if (driver == null) return;
-
-    if (road.isEmpty || location.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter current road and location')),
-      );
-      return;
-    }
 
     setState(() {
       _isUpdatingTrip = true;
     });
 
     try {
-      if (startTrip) {
-        await _firestoreService.startVehicleTrip(
-          vehicleId: widget.vehicle.id,
-          driverId: driver.uid,
-          roadDescription: road,
-          currentLocation: location,
-          bookingResetMinutes: widget.vehicle.bookingResetMinutes,
-        );
-        await _startGpsTracking();
-      } else {
-        await _firestoreService.updateVehicleTripProgress(
-          vehicleId: widget.vehicle.id,
-          roadDescription: road,
-          currentLocation: location,
-        );
-      }
+      await _firestoreService.startVehicleTrip(
+        vehicleId: widget.vehicle.id,
+        driverId: driver.uid,
+        roadDescription: '',
+        currentLocation: '',
+        bookingResetMinutes: widget.vehicle.bookingResetMinutes,
+      );
+      await _startGpsTracking();
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(startTrip ? 'Trip started' : 'Trip updated')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Trip started')));
     } catch (e) {
       if (!mounted) return;
 
@@ -126,8 +96,6 @@ class _DriverBookingsScreenState extends State<DriverBookingsScreen> {
               longitude: position.longitude,
               accuracy: position.accuracy,
               speed: position.speed.isNegative ? null : position.speed * 3.6,
-              roadDescription: _roadController.text.trim(),
-              currentLocation: _locationController.text.trim(),
             );
           },
           onError: (error) {
@@ -150,8 +118,6 @@ class _DriverBookingsScreenState extends State<DriverBookingsScreen> {
       speed: currentPosition.speed.isNegative
           ? null
           : currentPosition.speed * 3.6,
-      roadDescription: _roadController.text.trim(),
-      currentLocation: _locationController.text.trim(),
     );
 
     if (mounted) {
@@ -202,14 +168,15 @@ class _DriverBookingsScreenState extends State<DriverBookingsScreen> {
             const SizedBox(height: 12),
             _TripProgressCard(
               vehicleId: widget.vehicle.id,
+              bookingStartTime: widget.vehicle.bookingStartTime,
               bookingResetMinutes: widget.vehicle.bookingResetMinutes,
-              roadController: _roadController,
-              locationController: _locationController,
               firestoreService: _firestoreService,
               isUpdating: _isUpdatingTrip,
               isGpsTracking: _isGpsTracking,
               onStartTrip: _startTrip,
-              onUpdateProgress: _updateProgress,
+              onEndTrip: () async {
+                await _firestoreService.endVehicleTrip(widget.vehicle.id);
+              },
             ),
             const SizedBox(height: 12),
             StreamBuilder<List<Map<String, dynamic>>>(
@@ -284,25 +251,23 @@ class _VehicleHeader extends StatelessWidget {
 
 class _TripProgressCard extends StatelessWidget {
   final String vehicleId;
+  final String bookingStartTime;
   final int bookingResetMinutes;
-  final TextEditingController roadController;
-  final TextEditingController locationController;
   final FirestoreService firestoreService;
   final bool isUpdating;
   final bool isGpsTracking;
   final VoidCallback onStartTrip;
-  final VoidCallback onUpdateProgress;
+  final Future<void> Function() onEndTrip;
 
   const _TripProgressCard({
     required this.vehicleId,
+    required this.bookingStartTime,
     required this.bookingResetMinutes,
-    required this.roadController,
-    required this.locationController,
     required this.firestoreService,
     required this.isUpdating,
     required this.isGpsTracking,
     required this.onStartTrip,
-    required this.onUpdateProgress,
+    required this.onEndTrip,
   });
 
   @override
@@ -362,23 +327,7 @@ class _TripProgressCard extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: 12),
-                TextField(
-                  controller: roadController,
-                  decoration: const InputDecoration(
-                    labelText: 'Road / route vehicle is going',
-                    hintText: 'e.g., Galle Road toward Fort',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: locationController,
-                  decoration: const InputDecoration(
-                    labelText: 'Current location',
-                    hintText: 'e.g., Near main gate',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
+                Text('Bookings open daily from $bookingStartTime'),
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -389,23 +338,11 @@ class _TripProgressCard extends StatelessWidget {
                         label: const Text('Start Trip'),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: isUpdating ? null : onUpdateProgress,
-                        icon: const Icon(Icons.route),
-                        label: const Text('Update'),
-                      ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
-                  onPressed: isOngoing
-                      ? () async {
-                          await firestoreService.endVehicleTrip(vehicleId);
-                        }
-                      : null,
+                  onPressed: isOngoing ? () => onEndTrip() : null,
                   icon: const Icon(Icons.stop_circle_outlined),
                   label: const Text('End Trip'),
                 ),

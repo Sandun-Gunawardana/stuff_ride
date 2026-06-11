@@ -30,6 +30,20 @@ class FirestoreService {
     return _firestore.collection('vehicleTrips').doc(vehicleId);
   }
 
+  DateTime _bookingStartDateTimeForToday(
+    String bookingStartTime,
+    DateTime now,
+  ) {
+    final parts = bookingStartTime.split(':');
+    final hour = parts.isNotEmpty ? int.tryParse(parts[0]) ?? 6 : 6;
+    final minute = parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
+    return DateTime(now.year, now.month, now.day, hour, minute);
+  }
+
+  bool _isBookingOpenNow(String bookingStartTime, DateTime now) {
+    return !now.isBefore(_bookingStartDateTimeForToday(bookingStartTime, now));
+  }
+
   // ===== USER OPERATIONS =====
   Future<void> createUser(User user) async {
     await _firestore.collection('users').doc(user.uid).set(user.toMap());
@@ -453,21 +467,30 @@ class FirestoreService {
     required double pickupLatitude,
     required double pickupLongitude,
   }) async {
-    await ensureVehicleBookingSessionOpen(vehicleId);
+    final vehicleSnapshot = await _firestore
+        .collection('vehicles')
+        .doc(vehicleId)
+        .get();
+    final vehicleData = vehicleSnapshot.data();
+    if (!vehicleSnapshot.exists || vehicleData == null) {
+      throw Exception('Vehicle not found');
+    }
+
+    final bookingStartTime =
+        (vehicleData['bookingStartTime'] as String?) ?? '06:00';
+    if (!_isBookingOpenNow(bookingStartTime, DateTime.now())) {
+      throw Exception('Bookings open at $bookingStartTime');
+    }
 
     final tripSnapshot = await _vehicleTripRef(vehicleId).get();
     final tripData = tripSnapshot.data();
-    if (tripData == null || tripData['status'] != 'ongoing') {
-      throw Exception('Bookings are not open for this vehicle right now');
-    }
-
-    final sessionEndsAt = (tripData['bookingSessionEndsAt'] as Timestamp?)
+    final sessionEndsAt = (tripData?['bookingSessionEndsAt'] as Timestamp?)
         ?.toDate();
     final sessionIndex =
-        (tripData['bookingSessionIndex'] as num?)?.toInt() ?? 1;
-    if (sessionEndsAt == null ||
-        DateTime.now().toUtc().isAfter(sessionEndsAt.toUtc())) {
-      throw Exception('The booking window has closed');
+        (tripData?['bookingSessionIndex'] as num?)?.toInt() ?? 1;
+
+    if (tripData != null && tripData['status'] == 'ongoing') {
+      await ensureVehicleBookingSessionOpen(vehicleId);
     }
 
     final now = DateTime.now().toUtc();
@@ -513,7 +536,9 @@ class FirestoreService {
         'totalFare': 0.0,
         'status': 'confirmed',
         'bookingSessionIndex': sessionIndex,
-        'bookingSessionEndsAt': Timestamp.fromDate(sessionEndsAt),
+        'bookingSessionEndsAt': sessionEndsAt == null
+            ? null
+            : Timestamp.fromDate(sessionEndsAt),
         'bookingDate': Timestamp.fromDate(now),
       };
 
@@ -529,7 +554,9 @@ class FirestoreService {
         'pickupLatitude': pickupLatitude,
         'pickupLongitude': pickupLongitude,
         'bookingSessionIndex': sessionIndex,
-        'bookingSessionEndsAt': Timestamp.fromDate(sessionEndsAt),
+        'bookingSessionEndsAt': sessionEndsAt == null
+            ? null
+            : Timestamp.fromDate(sessionEndsAt),
         'bookingDate': Timestamp.fromDate(now),
       });
     });
