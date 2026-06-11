@@ -53,13 +53,15 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     if (passenger == null) return;
 
     final vehicleId = bookingData['vehicleId'] as String?;
+    final rideId = bookingData['rideId'] as String?;
     final seatNumber = _seatNumberFromBooking(bookingData['booking']);
 
-    if (vehicleId == null || seatNumber == null) return;
+    if (vehicleId == null || rideId == null || seatNumber == null) return;
 
     try {
       await _firestoreService.unbookVehicleSeat(
         vehicleId: vehicleId,
+        rideId: rideId,
         passengerId: passenger.uid,
         seatNumber: seatNumber,
       );
@@ -108,13 +110,23 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
             firestoreService: _firestoreService,
             onViewVehicles: _openAvailableVehicles,
             onChangeVehicle: _changeVehicle,
-            onViewSeat: (vehicle) {
+            onViewSeat: (bookingData) {
+              final vehicle = Vehicle.fromMap(
+                Map<String, dynamic>.from(bookingData['vehicle'] as Map),
+                bookingData['vehicleId'] as String,
+              );
+              final ride = Map<String, dynamic>.from(
+                bookingData['ride'] as Map,
+              );
+
               Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (_) => PassengerDashboard(
                     vehicleId: vehicle.id,
                     vehicleData: vehicle.toMap(),
+                    rideId: bookingData['rideId'] as String,
+                    rideData: ride,
                   ),
                 ),
               );
@@ -156,7 +168,7 @@ class _HomeTab extends StatelessWidget {
   final FirestoreService firestoreService;
   final VoidCallback onViewVehicles;
   final Future<void> Function(Map<String, dynamic> booking) onChangeVehicle;
-  final void Function(Vehicle vehicle) onViewSeat;
+  final void Function(Map<String, dynamic> booking) onViewSeat;
 
   const _HomeTab({
     required this.auth,
@@ -220,6 +232,7 @@ class _HomeTab extends StatelessWidget {
           vehicleMap,
           bookingData['vehicleId'] as String,
         );
+        final rideMap = Map<String, dynamic>.from(bookingData['ride'] as Map);
         final seatNumber = bookingMap['seatNumber'];
         final pickupLocation = bookingMap['pickupLocation'] ?? 'Pickup pending';
 
@@ -235,12 +248,13 @@ class _HomeTab extends StatelessWidget {
             const SizedBox(height: 12),
             _ActiveRideCard(
               vehicle: vehicle,
+              rideName: rideMap['rideName']?.toString() ?? 'Ride',
               seatNumber: seatNumber is int ? seatNumber : null,
               pickupLocation: pickupLocation.toString(),
-              onViewSeat: () => onViewSeat(vehicle),
+              onViewSeat: () => onViewSeat(bookingData),
               onChangeVehicle: () => onChangeVehicle(bookingData),
               locationStream: firestoreService.getLatestVehicleLocation(
-                vehicle.id,
+                bookingData['rideId'] as String,
               ),
             ),
           ],
@@ -329,6 +343,7 @@ class _BookingsTab extends StatelessWidget {
                   try {
                     await firestoreService.unbookVehicleSeat(
                       vehicleId: vehicleId,
+                      rideId: item['rideId'] as String,
                       passengerId: user.uid,
                       seatNumber: seatNumber,
                     );
@@ -351,12 +366,15 @@ class _BookingsTab extends StatelessWidget {
                   }
                 },
                 onTap: () {
+                  final ride = item['ride'] as Map<String, dynamic>;
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => PassengerDashboard(
                         vehicleId: item['vehicleId'] as String,
                         vehicleData: item['vehicle'] as Map<String, dynamic>,
+                        rideId: item['rideId'] as String,
+                        rideData: ride,
                       ),
                     ),
                   );
@@ -468,6 +486,7 @@ class _AvailableVehiclePreview extends StatelessWidget {
 
 class _ActiveRideCard extends StatelessWidget {
   final Vehicle vehicle;
+  final String rideName;
   final int? seatNumber;
   final String pickupLocation;
   final VoidCallback onViewSeat;
@@ -476,6 +495,7 @@ class _ActiveRideCard extends StatelessWidget {
 
   const _ActiveRideCard({
     required this.vehicle,
+    required this.rideName,
     required this.seatNumber,
     required this.pickupLocation,
     required this.onViewSeat,
@@ -499,6 +519,7 @@ class _ActiveRideCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Text(rideName),
                       Text(
                         vehicle.vehicleNumber,
                         style: Theme.of(context).textTheme.titleLarge,
@@ -600,6 +621,7 @@ class _BookedVehicleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final booking = item['booking'] as Map<String, dynamic>;
     final vehicle = item['vehicle'] as Map<String, dynamic>;
+    final ride = item['ride'] as Map<String, dynamic>;
     final seatNumber = booking['seatNumber'];
     final pickup = booking['pickupLocation'] ?? 'Pickup not set';
 
@@ -607,9 +629,9 @@ class _BookedVehicleCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
         leading: const CircleAvatar(child: Icon(Icons.event_available)),
-        title: Text(vehicle['vehicleNumber'] ?? 'Vehicle'),
+        title: Text(ride['rideName'] ?? 'Ride'),
         subtitle: Text(
-          '${vehicle['vehicleType'] ?? 'Vehicle'} • Seat ${seatNumber ?? '-'}\n$pickup',
+          '${vehicle['vehicleNumber'] ?? 'Vehicle'} • Seat ${seatNumber ?? '-'}\n$pickup',
         ),
         isThreeLine: true,
         trailing: TextButton.icon(

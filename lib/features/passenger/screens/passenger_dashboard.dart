@@ -6,11 +6,15 @@ import 'pickup_location_picker.dart';
 class PassengerDashboard extends StatefulWidget {
   final String vehicleId;
   final Map<String, dynamic> vehicleData;
+  final String rideId;
+  final Map<String, dynamic> rideData;
 
   const PassengerDashboard({
     super.key,
     required this.vehicleId,
     required this.vehicleData,
+    required this.rideId,
+    required this.rideData,
   });
 
   @override
@@ -27,6 +31,8 @@ class _PassengerDashboardState extends State<PassengerDashboard> {
 
   String get _vehicleType =>
       (widget.vehicleData['vehicleType'] ?? 'Vehicle').toString();
+
+  String get _rideName => (widget.rideData['rideName'] ?? 'Ride').toString();
 
   List<_SeatRowLayout> get _seatLayout {
     final layout = widget.vehicleData['seatLayout'];
@@ -99,6 +105,7 @@ class _PassengerDashboardState extends State<PassengerDashboard> {
 
       await _firestoreService.bookVehicleSeat(
         vehicleId: widget.vehicleId,
+        rideId: widget.rideId,
         passengerId: passenger.uid,
         passengerName:
             passengerDisplayName != null && passengerDisplayName.isNotEmpty
@@ -151,6 +158,7 @@ class _PassengerDashboardState extends State<PassengerDashboard> {
     try {
       await _firestoreService.unbookVehicleSeat(
         vehicleId: widget.vehicleId,
+        rideId: widget.rideId,
         passengerId: passenger.uid,
         seatNumber: seatNumber,
       );
@@ -185,7 +193,7 @@ class _PassengerDashboardState extends State<PassengerDashboard> {
       appBar: AppBar(title: const Text('Passenger Dashboard')),
       body: SafeArea(
         child: StreamBuilder<Map<int, String>>(
-          stream: _firestoreService.getVehicleSeatPassengers(widget.vehicleId),
+          stream: _firestoreService.getVehicleSeatPassengers(widget.rideId),
           builder: (context, snapshot) {
             final passenger = _auth.currentUser;
             final seatPassengers = snapshot.data ?? <int, String>{};
@@ -206,6 +214,7 @@ class _PassengerDashboardState extends State<PassengerDashboard> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _VehicleSummary(
+                    rideName: _rideName,
                     vehicleNumber: widget.vehicleData['vehicleNumber'] ?? 'N/A',
                     vehicleType: _vehicleType,
                     color: widget.vehicleData['color'] ?? 'N/A',
@@ -215,7 +224,7 @@ class _PassengerDashboardState extends State<PassengerDashboard> {
                   const SizedBox(height: 16),
                   _LiveLocationPanel(
                     stream: _firestoreService.getLatestVehicleLocation(
-                      widget.vehicleId,
+                      widget.rideId,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -272,6 +281,7 @@ class _PassengerDashboardState extends State<PassengerDashboard> {
 }
 
 class _VehicleSummary extends StatelessWidget {
+  final String rideName;
   final String vehicleNumber;
   final String vehicleType;
   final String color;
@@ -279,6 +289,7 @@ class _VehicleSummary extends StatelessWidget {
   final int totalSeats;
 
   const _VehicleSummary({
+    required this.rideName,
     required this.vehicleNumber,
     required this.vehicleType,
     required this.color,
@@ -299,6 +310,10 @@ class _VehicleSummary extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text(
+                    rideName,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   Text(
                     vehicleNumber,
                     style: Theme.of(context).textTheme.titleLarge,

@@ -3,6 +3,7 @@ import 'package:stuff_ride/models/vehicle_model.dart';
 import 'package:stuff_ride/services/firestore_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'add_vehicle_screen.dart';
+import 'driver_rides_screen.dart';
 
 class MyVehiclesScreen extends StatefulWidget {
   const MyVehiclesScreen({super.key});
@@ -89,6 +90,17 @@ class _MyVehiclesScreenState extends State<MyVehiclesScreen> {
                           return;
                         }
 
+                        if (value == 'rides') {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  DriverRidesScreen(vehicle: vehicle),
+                            ),
+                          );
+                          return;
+                        }
+
                         if (value == 'delete') {
                           await _firestoreService.deactivateVehicle(vehicle.id);
                           if (context.mounted) {
@@ -100,6 +112,10 @@ class _MyVehiclesScreenState extends State<MyVehiclesScreen> {
                       },
                       itemBuilder: (context) => [
                         const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                        const PopupMenuItem(
+                          value: 'rides',
+                          child: Text('Rides'),
+                        ),
                         const PopupMenuItem(
                           value: 'delete',
                           child: Text('Delete'),

@@ -5,7 +5,7 @@ import 'package:stuff_ride/models/vehicle_model.dart';
 import 'package:stuff_ride/services/auth_service.dart';
 import 'package:stuff_ride/services/firestore_service.dart';
 import 'add_vehicle_screen.dart';
-import 'driver_bookings_screen.dart';
+import 'driver_rides_screen.dart';
 import 'my_vehicles_screen.dart';
 
 class DriverHomeScreen extends StatefulWidget {
@@ -90,7 +90,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                             context,
                             MaterialPageRoute(
                               builder: (_) =>
-                                  DriverBookingsScreen(vehicle: vehicle),
+                                  DriverRidesScreen(vehicle: vehicle),
                             ),
                           );
                         },
@@ -99,7 +99,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                             context,
                             MaterialPageRoute(
                               builder: (_) =>
-                                  DriverBookingsScreen(vehicle: vehicle),
+                                  DriverRidesScreen(vehicle: vehicle),
                             ),
                           );
                         },
@@ -201,7 +201,7 @@ class _DriverVehicleActions extends StatelessWidget {
           child: ElevatedButton.icon(
             onPressed: onStartTrip,
             icon: const Icon(Icons.play_arrow),
-            label: const Text('Start Trip'),
+            label: const Text('Manage Rides'),
           ),
         ),
         const SizedBox(height: 12),
@@ -210,7 +210,7 @@ class _DriverVehicleActions extends StatelessWidget {
           child: OutlinedButton.icon(
             onPressed: onViewBookings,
             icon: const Icon(Icons.event_seat),
-            label: const Text('View Bookings'),
+            label: const Text('View Rides'),
           ),
         ),
         const SizedBox(height: 12),

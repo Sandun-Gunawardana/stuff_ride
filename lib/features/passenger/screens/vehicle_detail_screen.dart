@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'passenger_dashboard.dart';
+import 'vehicle_rides_screen.dart';
 
 class VehicleDetailScreen extends StatefulWidget {
   final String vehicleId;
@@ -105,7 +105,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => PassengerDashboard(
+                      builder: (_) => VehicleRidesScreen(
                         vehicleId: widget.vehicleId,
                         vehicleData: widget.vehicleData,
                       ),
@@ -113,7 +113,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                   );
                 },
                 child: const Text(
-                  "View Seats & Book",
+                  "View Rides & Book",
                   style: TextStyle(fontSize: 16),
                 ),
               ),
