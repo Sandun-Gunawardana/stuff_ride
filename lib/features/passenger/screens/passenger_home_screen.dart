@@ -32,6 +32,12 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
   }
 
   Future<void> _openAvailableVehicles() async {
+    if (mounted && _selectedTabIndex != 0) {
+      setState(() {
+        _selectedTabIndex = 0;
+      });
+    }
+
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const VehicleListScreen()),

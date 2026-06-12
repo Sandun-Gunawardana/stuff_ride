@@ -128,6 +128,7 @@ class _PassengerDashboardState extends State<PassengerDashboard> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Seat $seatNumber booked successfully')),
       );
+      navigator.popUntil((route) => route.isFirst);
     } catch (e) {
       if (!mounted) return;
 
