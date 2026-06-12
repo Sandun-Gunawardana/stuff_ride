@@ -38,42 +38,8 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     );
   }
 
-  int? _seatNumberFromBooking(dynamic bookingData) {
-    if (bookingData is Map<String, dynamic>) {
-      final seatNumber = bookingData['seatNumber'];
-      if (seatNumber is int) return seatNumber;
-      if (seatNumber is num) return seatNumber.toInt();
-    }
-    return null;
-  }
-
-  Future<void> _changeVehicle(Map<String, dynamic> bookingData) async {
-    final passenger = _auth.currentUser;
-    if (passenger == null) return;
-
-    final vehicleId = bookingData['vehicleId'] as String?;
-    final rideId = bookingData['rideId'] as String?;
-    final seatNumber = _seatNumberFromBooking(bookingData['booking']);
-
-    if (vehicleId == null || rideId == null || seatNumber == null) return;
-
-    try {
-      await _firestoreService.unbookVehicleSeat(
-        vehicleId: vehicleId,
-        rideId: rideId,
-        passengerId: passenger.uid,
-        seatNumber: seatNumber,
-      );
-
-      if (!mounted) return;
-      await _openAvailableVehicles();
-    } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
-      );
-    }
+  Future<void> _changeVehicle(Map<String, dynamic> _) async {
+    await _openAvailableVehicles();
   }
 
   @override
