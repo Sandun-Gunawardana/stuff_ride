@@ -6,6 +6,9 @@ class Ride {
   final String rideName;
   final String bookingStartTime;
   final String status; // scheduled, ongoing, completed, cancelled
+  final bool renewEnabled;
+  final String renewalFrequency; // daily, weekdays, weekly
+  final DateTime? bookingOpenAt;
   final String roadDescription;
   final String currentLocation;
   final double? lastLatitude;
@@ -24,6 +27,9 @@ class Ride {
     required this.rideName,
     required this.bookingStartTime,
     this.status = 'scheduled',
+    this.renewEnabled = false,
+    this.renewalFrequency = 'daily',
+    this.bookingOpenAt,
     this.roadDescription = '',
     this.currentLocation = '',
     this.lastLatitude,
@@ -55,6 +61,9 @@ class Ride {
       rideName: data['rideName'] ?? '',
       bookingStartTime: data['bookingStartTime'] ?? '06:00',
       status: data['status'] ?? 'scheduled',
+      renewEnabled: data['renewEnabled'] ?? false,
+      renewalFrequency: data['renewalFrequency'] ?? 'daily',
+      bookingOpenAt: _nullableDateFromValue(data['bookingOpenAt']),
       roadDescription: data['roadDescription'] ?? '',
       currentLocation: data['currentLocation'] ?? '',
       lastLatitude: (data['lastLatitude'] as num?)?.toDouble(),
@@ -75,6 +84,9 @@ class Ride {
       'rideName': rideName,
       'bookingStartTime': bookingStartTime,
       'status': status,
+      'renewEnabled': renewEnabled,
+      'renewalFrequency': renewalFrequency,
+      'bookingOpenAt': bookingOpenAt,
       'roadDescription': roadDescription,
       'currentLocation': currentLocation,
       'lastLatitude': lastLatitude,

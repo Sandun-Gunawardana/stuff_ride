@@ -602,6 +602,8 @@ class _HomeRideCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final renewalText = _rideRenewalText(ride);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
@@ -618,7 +620,12 @@ class _HomeRideCard extends StatelessWidget {
           builder: (context, snapshot) {
             final bookingCount = snapshot.data?.length ?? 0;
             return Text(
-              '${ride.status} • Bookings from ${ride.bookingStartTime} • $bookingCount booked',
+              [
+                ride.status,
+                'Bookings from ${ride.bookingStartTime}',
+                '$bookingCount booked',
+                ?renewalText,
+              ].join(' • '),
             );
           },
         ),
@@ -645,6 +652,8 @@ class _ManageRideCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final renewalText = _rideRenewalText(ride);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
@@ -667,7 +676,11 @@ class _ManageRideCard extends StatelessWidget {
                         builder: (context, snapshot) {
                           final bookingCount = snapshot.data?.length ?? 0;
                           return Text(
-                            'Bookings from ${ride.bookingStartTime} • $bookingCount booked',
+                            [
+                              'Bookings from ${ride.bookingStartTime}',
+                              '$bookingCount booked',
+                              ?renewalText,
+                            ].join(' • '),
                           );
                         },
                       ),
@@ -738,6 +751,18 @@ class _EmptyState extends StatelessWidget {
       ),
     );
   }
+}
+
+String? _rideRenewalText(Ride ride) {
+  if (!ride.renewEnabled) return null;
+
+  final frequency = switch (ride.renewalFrequency) {
+    'weekdays' => 'Weekdays',
+    'weekly' => 'Weekly',
+    _ => 'Daily',
+  };
+
+  return 'Renews $frequency';
 }
 
 class _StatusChip extends StatelessWidget {

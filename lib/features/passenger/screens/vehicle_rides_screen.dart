@@ -17,7 +17,24 @@ class VehicleRidesScreen extends StatelessWidget {
   final FirestoreService _firestoreService = FirestoreService();
 
   bool _canSelectRide(Ride ride) {
-    return ride.status == 'scheduled' || ride.status == 'ongoing';
+    final bookingOpenAt = ride.bookingOpenAt;
+    final bookingWindowOpen =
+        bookingOpenAt == null || !DateTime.now().isBefore(bookingOpenAt);
+    return bookingWindowOpen &&
+        (ride.status == 'scheduled' || ride.status == 'ongoing');
+  }
+
+  String _bookingStatusText(Ride ride) {
+    final bookingOpenAt = ride.bookingOpenAt;
+    if (bookingOpenAt == null || !DateTime.now().isBefore(bookingOpenAt)) {
+      return 'Bookings open from ${ride.bookingStartTime}';
+    }
+
+    final date =
+        '${bookingOpenAt.year.toString().padLeft(4, '0')}-${bookingOpenAt.month.toString().padLeft(2, '0')}-${bookingOpenAt.day.toString().padLeft(2, '0')}';
+    final time =
+        '${bookingOpenAt.hour.toString().padLeft(2, '0')}:${bookingOpenAt.minute.toString().padLeft(2, '0')}';
+    return 'Bookings open $date at $time';
   }
 
   @override
@@ -70,7 +87,7 @@ class VehicleRidesScreen extends StatelessWidget {
                         ),
                         title: Text(ride.rideName),
                         subtitle: Text(
-                          'Bookings open from ${ride.bookingStartTime}\nStatus: ${ride.status}',
+                          '${_bookingStatusText(ride)}\nStatus: ${ride.status}',
                         ),
                         isThreeLine: true,
                         trailing: FilledButton(

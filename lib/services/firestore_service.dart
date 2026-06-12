@@ -49,6 +49,48 @@ class FirestoreService {
     return status == 'scheduled' || status == 'ongoing';
   }
 
+  DateTime? _nullableDateFromValue(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    return value.toDate();
+  }
+
+  String _formatBookingOpenAt(DateTime dateTime) {
+    final year = dateTime.year.toString().padLeft(4, '0');
+    final month = dateTime.month.toString().padLeft(2, '0');
+    final day = dateTime.day.toString().padLeft(2, '0');
+    final hour = dateTime.hour.toString().padLeft(2, '0');
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    return '$year-$month-$day $hour:$minute';
+  }
+
+  DateTime _nextBookingOpenAt({
+    required String bookingStartTime,
+    required String renewalFrequency,
+    required DateTime from,
+  }) {
+    final parts = bookingStartTime.split(':');
+    final hour = parts.isNotEmpty ? int.tryParse(parts[0]) ?? 6 : 6;
+    final minute = parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
+
+    var next = DateTime(from.year, from.month, from.day, hour, minute);
+
+    if (renewalFrequency == 'weekly') {
+      next = next.add(const Duration(days: 7));
+      while (!next.isAfter(from)) {
+        next = next.add(const Duration(days: 7));
+      }
+      return next;
+    }
+
+    do {
+      next = next.add(const Duration(days: 1));
+    } while (renewalFrequency == 'weekdays' &&
+        (next.weekday == DateTime.saturday || next.weekday == DateTime.sunday));
+
+    return next;
+  }
+
   int _bookableSeatCount(Map<String, dynamic> vehicleData) {
     final layout = vehicleData['seatLayout'];
     if (layout is List && layout.isNotEmpty) {
@@ -214,6 +256,47 @@ class FirestoreService {
     await _rideRef(rideId).delete();
   }
 
+  Future<void> _renewRideIfNeeded(Map<String, dynamic>? rideData) async {
+    if (rideData == null || rideData['renewEnabled'] != true) return;
+
+    final driverId = rideData['driverId'] as String? ?? '';
+    final vehicleId = rideData['vehicleId'] as String? ?? '';
+    final companyId = rideData['companyId'] as String? ?? defaultCompanyId;
+    final rideName = rideData['rideName'] as String? ?? '';
+
+    if (driverId.isEmpty || vehicleId.isEmpty || rideName.isEmpty) return;
+
+    final now = DateTime.now();
+    final bookingStartTime = rideData['bookingStartTime'] as String? ?? '06:00';
+    final renewalFrequency = rideData['renewalFrequency'] as String? ?? 'daily';
+    final bookingOpenAt = _nextBookingOpenAt(
+      bookingStartTime: bookingStartTime,
+      renewalFrequency: renewalFrequency,
+      from: now,
+    );
+
+    await _firestore.collection('rides').add({
+      'driverId': driverId,
+      'vehicleId': vehicleId,
+      'companyId': companyId,
+      'rideName': rideName,
+      'bookingStartTime': bookingStartTime,
+      'status': 'scheduled',
+      'renewEnabled': true,
+      'renewalFrequency': renewalFrequency,
+      'bookingOpenAt': Timestamp.fromDate(bookingOpenAt.toUtc()),
+      'roadDescription': '',
+      'currentLocation': '',
+      'lastLatitude': null,
+      'lastLongitude': null,
+      'lastAccuracy': null,
+      'lastSpeed': null,
+      'createdAt': Timestamp.fromDate(now.toUtc()),
+      'startedAt': null,
+      'endedAt': null,
+    });
+  }
+
   Stream<List<Ride>> getDriverRides(String driverId) {
     return _firestore
         .collection('rides')
@@ -310,8 +393,11 @@ class FirestoreService {
   }
 
   Future<void> endRide(String rideId) async {
+    final rideSnapshot = await _rideRef(rideId).get();
+    final rideData = rideSnapshot.data();
     await _clearRideBookings(rideId);
     await _rideRef(rideId).delete();
+    await _renewRideIfNeeded(rideData);
   }
 
   Future<void> _clearRideBookings(String rideId) async {
@@ -595,7 +681,16 @@ class FirestoreService {
 
     final bookingStartTime =
         (rideData['bookingStartTime'] as String?) ?? '06:00';
-    if (!_isBookingOpenNow(bookingStartTime, DateTime.now())) {
+    final bookingOpenAt = _nullableDateFromValue(rideData['bookingOpenAt']);
+    final now = DateTime.now();
+
+    if (bookingOpenAt != null && now.isBefore(bookingOpenAt)) {
+      throw Exception(
+        'Bookings open at ${_formatBookingOpenAt(bookingOpenAt)}',
+      );
+    }
+
+    if (bookingOpenAt == null && !_isBookingOpenNow(bookingStartTime, now)) {
       throw Exception('Bookings open at $bookingStartTime');
     }
 
@@ -617,7 +712,7 @@ class FirestoreService {
       throw Exception('This seat cannot be booked');
     }
 
-    final now = DateTime.now().toUtc();
+    final bookingDate = DateTime.now().toUtc();
     final bookingRef = _bookingRef(rideId, seatNumber);
     final activeRef = _passengerActiveBookingRef(passengerId);
 
@@ -638,7 +733,7 @@ class FirestoreService {
             (oldRideId != rideId || oldSeatNumber != seatNumber)) {
           transaction.set(_bookingRef(oldRideId, oldSeatNumber), {
             'status': 'cancelled',
-            'cancelledDate': Timestamp.fromDate(now),
+            'cancelledDate': Timestamp.fromDate(bookingDate),
           }, SetOptions(merge: true));
         }
       }
@@ -663,7 +758,7 @@ class FirestoreService {
         'status': 'confirmed',
         'pickupStatus': 'waiting',
         'pickedUp': false,
-        'bookingDate': Timestamp.fromDate(now),
+        'bookingDate': Timestamp.fromDate(bookingDate),
       };
 
       transaction.set(bookingRef, bookingPayload);
@@ -679,7 +774,7 @@ class FirestoreService {
         'pickupLongitude': pickupLongitude,
         'pickupStatus': 'waiting',
         'pickedUp': false,
-        'bookingDate': Timestamp.fromDate(now),
+        'bookingDate': Timestamp.fromDate(bookingDate),
       });
     });
   }
@@ -830,8 +925,11 @@ class FirestoreService {
   }
 
   Future<void> endVehicleTrip(String rideId) async {
+    final rideSnapshot = await _rideRef(rideId).get();
+    final rideData = rideSnapshot.data();
     await _clearVehicleBookings(rideId);
     await _rideRef(rideId).delete();
+    await _renewRideIfNeeded(rideData);
   }
 
   Future<void> _clearVehicleBookings(String rideId) async {

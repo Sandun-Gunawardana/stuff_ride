@@ -20,8 +20,16 @@ class _AddRideScreenState extends State<AddRideScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _isLoading = false;
+  bool _renewEnabled = false;
+  String _renewalFrequency = 'daily';
 
   bool get _isEditing => widget.ride != null;
+
+  static const List<String> _renewalFrequencies = [
+    'daily',
+    'weekdays',
+    'weekly',
+  ];
 
   @override
   void initState() {
@@ -32,6 +40,11 @@ class _AddRideScreenState extends State<AddRideScreen> {
     _bookingStartTimeController = TextEditingController(
       text: widget.ride?.bookingStartTime ?? '06:00',
     );
+    _renewEnabled = widget.ride?.renewEnabled ?? false;
+    final renewalFrequency = widget.ride?.renewalFrequency ?? 'daily';
+    _renewalFrequency = _renewalFrequencies.contains(renewalFrequency)
+        ? renewalFrequency
+        : 'daily';
   }
 
   @override
@@ -78,6 +91,9 @@ class _AddRideScreenState extends State<AddRideScreen> {
         rideName: rideName,
         bookingStartTime: bookingStartTime,
         status: existingRide?.status ?? 'scheduled',
+        renewEnabled: _renewEnabled,
+        renewalFrequency: _renewalFrequency,
+        bookingOpenAt: existingRide?.bookingOpenAt,
         roadDescription: existingRide?.roadDescription ?? '',
         currentLocation: existingRide?.currentLocation ?? '',
         lastLatitude: existingRide?.lastLatitude,
@@ -133,58 +149,173 @@ class _AddRideScreenState extends State<AddRideScreen> {
     );
   }
 
+  Future<void> _pickBookingStartTime() async {
+    final currentValue = _bookingStartTimeController.text.trim();
+    final parts = currentValue.split(':');
+    final initialTime = TimeOfDay(
+      hour: parts.isNotEmpty ? int.tryParse(parts[0]) ?? 6 : 6,
+      minute: parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0,
+    );
+
+    final selectedTime = await showTimePicker(
+      context: context,
+      initialTime: initialTime,
+    );
+    if (selectedTime == null) return;
+
+    _bookingStartTimeController.text =
+        '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _renewalLabel(String frequency) {
+    return switch (frequency) {
+      'weekdays' => 'Weekdays',
+      'weekly' => 'Weekly',
+      _ => 'Daily',
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
+    final passengerSeats = widget.vehicle.seatCapacity > 0
+        ? widget.vehicle.seatCapacity - 1
+        : 0;
+
     return Scaffold(
       appBar: AppBar(title: Text(_isEditing ? 'Edit Ride' : 'Add Ride')),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(16),
           children: [
-            Text(
-              widget.vehicle.vehicleNumber,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '${widget.vehicle.vehicleType} • ${widget.vehicle.seatCapacity} seats',
-            ),
-            const SizedBox(height: 24),
-            TextField(
-              controller: _rideNameController,
-              decoration: InputDecoration(
-                labelText: 'Ride Name',
-                hintText: 'e.g. Morning ride, Evening ride',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const CircleAvatar(child: Icon(Icons.directions_bus)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.vehicle.vehicleNumber,
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                          Text(
+                            '${widget.vehicle.vehicleType} • $passengerSeats passenger seats',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: _bookingStartTimeController,
-              decoration: InputDecoration(
-                labelText: 'Booking Start Time',
-                hintText: 'e.g. 06:00',
-                helperText:
-                    'Passengers can book this ride from this time daily.',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+            const SizedBox(height: 12),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Ride details',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _rideNameController,
+                      textInputAction: TextInputAction.next,
+                      decoration: InputDecoration(
+                        labelText: 'Ride Name',
+                        hintText: 'e.g. Morning ride',
+                        prefixIcon: const Icon(Icons.route),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _bookingStartTimeController,
+                      readOnly: true,
+                      onTap: _pickBookingStartTime,
+                      decoration: InputDecoration(
+                        labelText: 'Booking Start Time',
+                        hintText: 'e.g. 06:00',
+                        prefixIcon: const Icon(Icons.schedule),
+                        suffixIcon: const Icon(Icons.expand_more),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      secondary: const Icon(Icons.autorenew),
+                      title: const Text('Auto renew ride'),
+                      subtitle: Text(
+                        _renewEnabled
+                            ? _renewalLabel(_renewalFrequency)
+                            : 'Off',
+                      ),
+                      value: _renewEnabled,
+                      onChanged: (value) {
+                        setState(() {
+                          _renewEnabled = value;
+                        });
+                      },
+                    ),
+                    if (_renewEnabled) ...[
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final frequency in _renewalFrequencies)
+                            ChoiceChip(
+                              label: Text(_renewalLabel(frequency)),
+                              selected: _renewalFrequency == frequency,
+                              onSelected: (_) {
+                                setState(() {
+                                  _renewalFrequency = frequency;
+                                });
+                              },
+                            ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             SizedBox(
-              height: 50,
-              child: ElevatedButton(
+              height: 52,
+              child: FilledButton.icon(
                 onPressed: _isLoading ? null : _saveRide,
-                child: _isLoading
+                icon: _isLoading
                     ? const SizedBox(
                         height: 20,
                         width: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : Text(_isEditing ? 'Save Changes' : 'Create Ride'),
+                    : Icon(_isEditing ? Icons.save : Icons.add),
+                label: Text(_isEditing ? 'Save Changes' : 'Create Ride'),
               ),
             ),
           ],
