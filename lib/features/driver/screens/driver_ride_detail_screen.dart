@@ -102,7 +102,7 @@ class _DriverRideDetailScreenState extends State<DriverRideDetailScreen> {
       builder: (context) => AlertDialog(
         title: const Text('End ride?'),
         content: const Text(
-          'This will complete the ride and reset its passenger bookings.',
+          'This will stop the ride, reset its passenger bookings, and remove it from your rides.',
         ),
         actions: [
           TextButton(
@@ -132,7 +132,8 @@ class _DriverRideDetailScreenState extends State<DriverRideDetailScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('${ride.rideName} completed')));
+      ).showSnackBar(SnackBar(content: Text('${ride.rideName} stopped')));
+      Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

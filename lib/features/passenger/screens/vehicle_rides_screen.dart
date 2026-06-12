@@ -16,6 +16,10 @@ class VehicleRidesScreen extends StatelessWidget {
 
   final FirestoreService _firestoreService = FirestoreService();
 
+  bool _canSelectRide(Ride ride) {
+    return ride.status == 'scheduled' || ride.status == 'ongoing';
+  }
+
   @override
   Widget build(BuildContext context) {
     final vehicle = Vehicle.fromMap(vehicleData, vehicleId);
@@ -42,7 +46,10 @@ class VehicleRidesScreen extends StatelessWidget {
                 return const Center(child: CircularProgressIndicator());
               }
 
-              final rides = snapshot.data ?? [];
+              final rides = (snapshot.data ?? [])
+                  .where((ride) => ride.status != 'completed')
+                  .where((ride) => ride.status != 'cancelled')
+                  .toList();
               if (rides.isEmpty) {
                 return const Padding(
                   padding: EdgeInsets.all(24),
@@ -67,7 +74,7 @@ class VehicleRidesScreen extends StatelessWidget {
                         ),
                         isThreeLine: true,
                         trailing: FilledButton(
-                          onPressed: ride.status == 'scheduled'
+                          onPressed: _canSelectRide(ride)
                               ? () {
                                   Navigator.push(
                                     context,

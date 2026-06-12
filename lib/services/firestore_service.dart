@@ -45,6 +45,10 @@ class FirestoreService {
     return !now.isBefore(_bookingStartDateTimeForToday(bookingStartTime, now));
   }
 
+  bool _canBookRideStatus(String? status) {
+    return status == 'scheduled' || status == 'ongoing';
+  }
+
   // ===== USER OPERATIONS =====
   Future<void> createUser(User user) async {
     await _firestore.collection('users').doc(user.uid).set(user.toMap());
@@ -291,12 +295,7 @@ class FirestoreService {
 
   Future<void> endRide(String rideId) async {
     await _clearRideBookings(rideId);
-    final now = DateTime.now().toUtc();
-    await _rideRef(rideId).set({
-      'status': 'completed',
-      'endedAt': Timestamp.fromDate(now),
-      'updatedAt': Timestamp.fromDate(now),
-    }, SetOptions(merge: true));
+    await _rideRef(rideId).delete();
   }
 
   Future<void> _clearRideBookings(String rideId) async {
@@ -584,7 +583,7 @@ class FirestoreService {
       throw Exception('Bookings open at $bookingStartTime');
     }
 
-    if (rideData['status'] != 'scheduled') {
+    if (!_canBookRideStatus(rideData['status'] as String?)) {
       throw Exception('Bookings are closed for this ride');
     }
 
@@ -801,13 +800,8 @@ class FirestoreService {
   }
 
   Future<void> endVehicleTrip(String rideId) async {
-    final now = DateTime.now().toUtc();
     await _clearVehicleBookings(rideId);
-    await _rideRef(rideId).set({
-      'status': 'completed',
-      'endedAt': Timestamp.fromDate(now),
-      'updatedAt': Timestamp.fromDate(now),
-    }, SetOptions(merge: true));
+    await _rideRef(rideId).delete();
   }
 
   Future<void> _clearVehicleBookings(String rideId) async {
