@@ -58,8 +58,10 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     }
 
     final seatCapacity = int.tryParse(_seatCapacityController.text);
-    if (seatCapacity == null || seatCapacity <= 0) {
-      _showErrorDialog('Seat capacity must be a valid number');
+    if (seatCapacity == null || seatCapacity <= 1) {
+      _showErrorDialog(
+        'Seat capacity must include the driver seat and at least one passenger seat',
+      );
       return;
     }
 
@@ -197,7 +199,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                 controller: _seatCapacityController,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
-                  labelText: "Seat Capacity",
+                  labelText: "Seat Capacity Including Driver",
                   hintText: "e.g., 5, 10, 20",
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),

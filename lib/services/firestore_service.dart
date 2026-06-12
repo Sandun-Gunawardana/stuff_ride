@@ -49,6 +49,22 @@ class FirestoreService {
     return status == 'scheduled' || status == 'ongoing';
   }
 
+  int _bookableSeatCount(Map<String, dynamic> vehicleData) {
+    final layout = vehicleData['seatLayout'];
+    if (layout is List && layout.isNotEmpty) {
+      final physicalSeatCount = layout.fold<int>(0, (total, row) {
+        if (row is! Map) return total;
+        final seats = row['seats'];
+        return total + (seats is num ? seats.toInt() : 0);
+      });
+      return physicalSeatCount > 0 ? physicalSeatCount - 1 : 0;
+    }
+
+    final seatCapacity = vehicleData['seatCapacity'];
+    final physicalSeatCount = seatCapacity is num ? seatCapacity.toInt() : 0;
+    return physicalSeatCount > 0 ? physicalSeatCount - 1 : 0;
+  }
+
   // ===== USER OPERATIONS =====
   Future<void> createUser(User user) async {
     await _firestore.collection('users').doc(user.uid).set(user.toMap());
@@ -585,6 +601,20 @@ class FirestoreService {
 
     if (!_canBookRideStatus(rideData['status'] as String?)) {
       throw Exception('Bookings are closed for this ride');
+    }
+
+    final vehicleSnapshot = await _firestore
+        .collection('vehicles')
+        .doc(vehicleId)
+        .get();
+    final vehicleData = vehicleSnapshot.data();
+    if (!vehicleSnapshot.exists || vehicleData == null) {
+      throw Exception('Vehicle not found');
+    }
+
+    final bookableSeatCount = _bookableSeatCount(vehicleData);
+    if (seatNumber < 1 || seatNumber > bookableSeatCount) {
+      throw Exception('This seat cannot be booked');
     }
 
     final now = DateTime.now().toUtc();

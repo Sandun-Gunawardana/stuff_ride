@@ -266,8 +266,6 @@ class _SeatLayoutPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var seatNumber = 1;
-
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -276,30 +274,71 @@ class _SeatLayoutPreview extends StatelessWidget {
           children: [
             Text('Preview', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 12),
-            for (final row in rows) ...[
-              Row(
-                children: [
-                  for (var i = 1; i <= row.seats; i++) ...[
-                    if (row.aisleAfter == i - 1) const SizedBox(width: 20),
-                    Expanded(
-                      child: Container(
-                        height: 42,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE8F5E9),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.black12),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text('${seatNumber++}'),
-                      ),
-                    ),
-                    if (i != row.seats) const SizedBox(width: 8),
-                  ],
-                ],
-              ),
-              const SizedBox(height: 8),
-            ],
+            ..._buildPreviewRows(),
           ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildPreviewRows() {
+    final rowWidgets = <Widget>[];
+    var passengerSeatNumber = 1;
+
+    for (var rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+      final row = rows[rowIndex];
+      final children = <Widget>[];
+
+      for (var i = 1; i <= row.seats; i++) {
+        final isDriverSeat = rowIndex == 0 && i == row.seats;
+
+        if (row.aisleAfter == i - 1) {
+          children.add(const SizedBox(width: 20));
+        }
+
+        children.add(
+          Expanded(
+            child: _PreviewSeatTile(
+              label: isDriverSeat ? 'Driver' : '${passengerSeatNumber++}',
+              isDriverSeat: isDriverSeat,
+            ),
+          ),
+        );
+
+        if (i != row.seats) {
+          children.add(const SizedBox(width: 8));
+        }
+      }
+
+      rowWidgets.add(Row(children: children));
+      rowWidgets.add(const SizedBox(height: 8));
+    }
+
+    return rowWidgets;
+  }
+}
+
+class _PreviewSeatTile extends StatelessWidget {
+  final String label;
+  final bool isDriverSeat;
+
+  const _PreviewSeatTile({required this.label, required this.isDriverSeat});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 42,
+      decoration: BoxDecoration(
+        color: isDriverSeat ? const Color(0xFFE0E0E0) : const Color(0xFFE8F5E9),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.black12),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        label,
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: isDriverSeat ? 12 : null,
         ),
       ),
     );

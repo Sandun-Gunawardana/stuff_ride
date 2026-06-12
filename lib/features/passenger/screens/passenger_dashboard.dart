@@ -29,6 +29,8 @@ class _PassengerDashboardState extends State<PassengerDashboard> {
 
   int get _seatCapacity => widget.vehicleData['seatCapacity'] ?? 0;
 
+  int get _passengerSeatCapacity => _seatCapacity > 0 ? _seatCapacity - 1 : 0;
+
   String get _vehicleType =>
       (widget.vehicleData['vehicleType'] ?? 'Vehicle').toString();
 
@@ -198,15 +200,22 @@ class _PassengerDashboardState extends State<PassengerDashboard> {
             final passenger = _auth.currentUser;
             final seatPassengers = snapshot.data ?? <int, String>{};
             final bookedSeats = seatPassengers.keys.toSet();
+            final bookedPassengerSeats = bookedSeats
+                .where(
+                  (seatNumber) =>
+                      seatNumber >= 1 && seatNumber <= _passengerSeatCapacity,
+                )
+                .length;
             final selectedSeatOwner = _selectedSeat == null
                 ? null
                 : seatPassengers[_selectedSeat];
             final selectedOwnSeat =
                 passenger != null && selectedSeatOwner == passenger.uid;
-            final availableSeats = (_seatCapacity - bookedSeats.length).clamp(
-              0,
-              _seatCapacity,
-            );
+            final availableSeats =
+                (_passengerSeatCapacity - bookedPassengerSeats).clamp(
+                  0,
+                  _passengerSeatCapacity,
+                );
 
             return SingleChildScrollView(
               padding: const EdgeInsets.all(16),
@@ -219,7 +228,7 @@ class _PassengerDashboardState extends State<PassengerDashboard> {
                     vehicleType: _vehicleType,
                     color: widget.vehicleData['color'] ?? 'N/A',
                     availableSeats: availableSeats,
-                    totalSeats: _seatCapacity,
+                    totalSeats: _passengerSeatCapacity,
                   ),
                   const SizedBox(height: 16),
                   _LiveLocationPanel(
@@ -332,7 +341,7 @@ class _VehicleSummary extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                Text('of $totalSeats seats'),
+                Text('of $totalSeats passenger seats'),
               ],
             ),
           ],
@@ -417,15 +426,15 @@ class _LiveLocationPanel extends StatelessWidget {
 class _SeatLegend extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return const Row(
+    return const Wrap(
+      spacing: 14,
+      runSpacing: 8,
       children: [
         _LegendItem(color: Color(0xFFE8F5E9), label: 'Available'),
-        SizedBox(width: 14),
         _LegendItem(color: Color(0xFFBBDEFB), label: 'Selected'),
-        SizedBox(width: 14),
         _LegendItem(color: Color(0xFFFFF3CD), label: 'Yours'),
-        SizedBox(width: 14),
         _LegendItem(color: Color(0xFFFFCDD2), label: 'Booked'),
+        _LegendItem(color: Color(0xFFE0E0E0), label: 'Driver'),
       ],
     );
   }
@@ -495,24 +504,11 @@ class _VehicleSeatLayout extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Container(
-                width: 72,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5F5F5),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.black12),
-                ),
-                child: const Icon(Icons.radio_button_checked),
-              ),
-            ),
-            const SizedBox(height: 16),
             for (var rowIndex = 0; rowIndex < rows.length; rowIndex++) ...[
               _SeatLayoutRow(
                 row: rows[rowIndex],
                 firstSeatNumber: _firstSeatNumberForRow(rowIndex),
+                isFrontRow: rowIndex == 0,
                 seatPassengers: seatPassengers,
                 currentPassengerId: currentPassengerId,
                 selectedSeat: selectedSeat,
@@ -529,15 +525,24 @@ class _VehicleSeatLayout extends StatelessWidget {
   int _firstSeatNumberForRow(int rowIndex) {
     var seatNumber = 1;
     for (var index = 0; index < rowIndex; index++) {
-      seatNumber += rows[index].seats;
+      seatNumber += _passengerSeatsForRow(index);
     }
     return seatNumber;
+  }
+
+  int _passengerSeatsForRow(int rowIndex) {
+    final seats = rows[rowIndex].seats;
+    if (rowIndex == 0 && seats > 0) {
+      return seats - 1;
+    }
+    return seats;
   }
 }
 
 class _SeatLayoutRow extends StatelessWidget {
   final _SeatRowLayout row;
   final int firstSeatNumber;
+  final bool isFrontRow;
   final Map<int, String> seatPassengers;
   final String? currentPassengerId;
   final int? selectedSeat;
@@ -546,6 +551,7 @@ class _SeatLayoutRow extends StatelessWidget {
   const _SeatLayoutRow({
     required this.row,
     required this.firstSeatNumber,
+    required this.isFrontRow,
     required this.seatPassengers,
     required this.currentPassengerId,
     required this.selectedSeat,
@@ -554,23 +560,44 @@ class _SeatLayoutRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        for (var index = 0; index < row.seats; index++) ...[
-          if (row.aisleAfter == index) const SizedBox(width: 18),
-          Expanded(
-            child: _SeatTile(
-              seatNumber: firstSeatNumber + index,
-              passengerId: seatPassengers[firstSeatNumber + index],
-              currentPassengerId: currentPassengerId,
-              isSelected: selectedSeat == firstSeatNumber + index,
-              onTap: onSeatSelected,
-            ),
-          ),
-          if (index != row.seats - 1) const SizedBox(width: 8),
-        ],
-      ],
-    );
+    return Row(children: _buildSeats());
+  }
+
+  List<Widget> _buildSeats() {
+    final children = <Widget>[];
+    var passengerSeatNumber = firstSeatNumber;
+
+    for (var index = 0; index < row.seats; index++) {
+      final isDriverSeat = isFrontRow && index == row.seats - 1;
+
+      if (row.aisleAfter == index) {
+        children.add(const SizedBox(width: 18));
+      }
+
+      children.add(
+        Expanded(
+          child: isDriverSeat
+              ? const _DriverSeatTile()
+              : _SeatTile(
+                  seatNumber: passengerSeatNumber,
+                  passengerId: seatPassengers[passengerSeatNumber],
+                  currentPassengerId: currentPassengerId,
+                  isSelected: selectedSeat == passengerSeatNumber,
+                  onTap: onSeatSelected,
+                ),
+        ),
+      );
+
+      if (!isDriverSeat) {
+        passengerSeatNumber++;
+      }
+
+      if (index != row.seats - 1) {
+        children.add(const SizedBox(width: 8));
+      }
+    }
+
+    return children;
   }
 }
 
@@ -629,6 +656,32 @@ class _SeatTile extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _DriverSeatTile extends StatelessWidget {
+  const _DriverSeatTile();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 54,
+      decoration: BoxDecoration(
+        color: const Color(0xFFE0E0E0),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.black12),
+      ),
+      child: const Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.drive_eta, color: Colors.black87),
+          Text(
+            'Driver',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+          ),
+        ],
       ),
     );
   }
