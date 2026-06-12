@@ -32,37 +32,12 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Vehicle Details")),
+      appBar: AppBar(title: const Text('Vehicle Details')),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Center(
-              child: Icon(Icons.directions_car, size: 80, color: Colors.blue),
-            ),
-            const SizedBox(height: 30),
-            _buildDetailRow(
-              "Vehicle Number",
-              widget.vehicleData['vehicleNumber'] ?? 'N/A',
-            ),
-            _buildDetailRow(
-              "Vehicle Type",
-              widget.vehicleData['vehicleType'] ?? 'N/A',
-            ),
-            _buildDetailRow(
-              "Seat Capacity",
-              "${widget.vehicleData['seatCapacity']} seats",
-            ),
-            _buildDetailRow("Color", widget.vehicleData['color'] ?? 'N/A'),
-            const SizedBox(height: 30),
-            const Divider(),
-            const SizedBox(height: 20),
-            const Text(
-              "Driver Information",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
             FutureBuilder<DocumentSnapshot>(
               future: _driverFuture,
               builder: (context, snapshot) {
@@ -77,30 +52,62 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                 final driverData =
                     snapshot.data!.data() as Map<String, dynamic>?;
 
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildDetailRow(
-                      "Driver Name",
-                      driverData?['fullName'] ?? 'N/A',
+                return Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            const CircleAvatar(
+                              radius: 28,
+                              child: Icon(Icons.directions_bus),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    widget.vehicleData['vehicleNumber'] ??
+                                        'Vehicle',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleLarge
+                                        ?.copyWith(fontWeight: FontWeight.bold),
+                                  ),
+                                  Text(
+                                    '${widget.vehicleData['vehicleType'] ?? 'Vehicle'} • ${widget.vehicleData['color'] ?? 'N/A'}',
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        _buildDetailRow(
+                          'Seat Capacity',
+                          '${widget.vehicleData['seatCapacity'] ?? 'N/A'} seats',
+                        ),
+                        _buildDetailRow(
+                          'Driver',
+                          driverData?['fullName'] ?? 'N/A',
+                        ),
+                        _buildDetailRow(
+                          'Mobile',
+                          driverData?['mobileNumber'] ?? 'N/A',
+                        ),
+                      ],
                     ),
-                    _buildDetailRow(
-                      "Mobile Number",
-                      driverData?['mobileNumber'] ?? 'N/A',
-                    ),
-                    _buildDetailRow(
-                      "Rating",
-                      "${driverData?['rating'] ?? 0.0} ★",
-                    ),
-                  ],
+                  ),
                 );
               },
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 16),
             SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
+              height: 52,
+              child: FilledButton.icon(
                 onPressed: () {
                   Navigator.push(
                     context,
@@ -112,10 +119,8 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                     ),
                   );
                 },
-                child: const Text(
-                  "View Rides & Book",
-                  style: TextStyle(fontSize: 16),
-                ),
+                icon: const Icon(Icons.event_seat),
+                label: const Text('View Rides & Book'),
               ),
             ),
           ],
@@ -126,20 +131,27 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
 
   Widget _buildDetailRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontWeight: FontWeight.w500,
-              color: Colors.grey,
+          SizedBox(
+            width: 110,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+                color: Colors.grey,
+              ),
             ),
           ),
-          Text(
-            value,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
