@@ -486,18 +486,11 @@ class _HomeRideCard extends StatelessWidget {
           builder: (context, snapshot) {
             final bookingCount = snapshot.data?.length ?? 0;
             return Text(
-              'Bookings from ${ride.bookingStartTime} • $bookingCount booked',
+              '${ride.status} • Bookings from ${ride.bookingStartTime} • $bookingCount booked',
             );
           },
         ),
-        trailing: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            _StatusChip(status: ride.status),
-            const Icon(Icons.chevron_right),
-          ],
-        ),
+        trailing: const Icon(Icons.chevron_right),
       ),
     );
   }
