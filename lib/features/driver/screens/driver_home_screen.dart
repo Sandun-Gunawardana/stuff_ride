@@ -233,10 +233,10 @@ class _DriverHomeTab extends StatelessWidget {
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _VehicleHeader(vehicle: activeVehicle),
+            _DriverDashboardSummary(vehicle: activeVehicle, rides: rides),
             const SizedBox(height: 16),
             Text(
-              'Not completed rides',
+              'Rides',
               style: Theme.of(
                 context,
               ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
@@ -452,6 +452,138 @@ class _VehicleHeader extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _DriverDashboardSummary extends StatelessWidget {
+  final Vehicle vehicle;
+  final List<Ride> rides;
+
+  const _DriverDashboardSummary({required this.vehicle, required this.rides});
+
+  @override
+  Widget build(BuildContext context) {
+    final ongoingCount = rides.where((ride) => ride.status == 'ongoing').length;
+    final scheduledCount = rides
+        .where((ride) => ride.status == 'scheduled')
+        .length;
+    final passengerSeats = vehicle.seatCapacity > 0
+        ? vehicle.seatCapacity - 1
+        : 0;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 28,
+                  backgroundColor: colorScheme.primaryContainer,
+                  child: Icon(
+                    Icons.directions_bus,
+                    color: colorScheme.onPrimaryContainer,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Driver Dashboard',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${vehicle.vehicleNumber} • ${vehicle.vehicleType}',
+                        style: Theme.of(context).textTheme.bodyLarge,
+                      ),
+                      Text(
+                        '$passengerSeats passenger seats',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _DashboardStat(
+                  icon: Icons.route,
+                  label: 'Open rides',
+                  value: '${rides.length}',
+                ),
+                _DashboardStat(
+                  icon: Icons.navigation,
+                  label: 'On road',
+                  value: '$ongoingCount',
+                ),
+                _DashboardStat(
+                  icon: Icons.schedule,
+                  label: 'Scheduled',
+                  value: '$scheduledCount',
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DashboardStat extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _DashboardStat({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      width: 104,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: colorScheme.primary),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
       ),
     );
   }
